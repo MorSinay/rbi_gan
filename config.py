@@ -51,9 +51,17 @@ parser.add_argument('--play-episodes-interval', type=int, default=16, metavar='N
 
 #TODO Mor: return to 128
 parser.add_argument('--batch', type=int, default=5, help='Mini-Batch Size')
+
+
+# strings
+parser.add_argument('--game', type=str, default='active', help='Active | Generate')
+parser.add_argument('--identifier', type=str, default='debug', help='The name of the model to use')
+parser.add_argument('--algorithm', type=str, default='action', help='[action|policy]')
+#parser.add_argument('--base-dir', type=str, default=base_dir, help='Base directory for Logs and results')
+
 # # booleans
-# boolean_feature("load-last-model", False, 'Load the last saved model')
-# boolean_feature("load-best-model", False, 'Load the best saved model')
+boolean_feature("load-last-model", False, 'Load the last saved model')
+boolean_feature("load-best-model", False, 'Load the best saved model')
 # boolean_feature("learn", False, 'Learn from the observations')
 # boolean_feature("play", False, 'Test the learned model via playing')
 # boolean_feature("postprocess", False, 'Postprocess evaluation results')
@@ -61,9 +69,12 @@ parser.add_argument('--batch', type=int, default=5, help='Mini-Batch Size')
 # boolean_feature("evaluate", False, 'evaluate player')
 # boolean_feature("clean", False, 'Clean old trajectories')
 # boolean_feature("tensorboard", True, "Log results to tensorboard")
-# boolean_feature("log-scores", True, "Log score results to NPY objects")
+boolean_feature("log-scores", True, "Log score results to NPY objects")
 #TODO Mor: return to 6
 parser.add_argument('--n-steps', type=int, default=1, metavar='STEPS', help='Number of steps for multi-step learning')
+
+# parameters
+parser.add_argument('--resume', type=int, default=-1, help='Resume experiment number, set -1 for last experiment')
 
 # #exploration parameters
 # parser.add_argument('--softmax-diff', type=float, default=3.8, metavar='β', help='Maximum softmax diff')
@@ -76,8 +87,10 @@ parser.add_argument('--cuda-default', type=int, default=0, help='Default GPU')
 #
 # #train parameters
 parser.add_argument('--update-target-interval', type=int, default=2500, metavar='STEPS', help='Number of traning iterations between q-target updates')
-# parser.add_argument('--n-tot', type=int, default=3125000, metavar='STEPS', help='Total number of training steps')
-# parser.add_argument('--checkpoint-interval', type=int, default=5000, metavar='STEPS', help='Number of training steps between evaluations')
+#TODO Mor: change workers to 31600
+parser.add_argument('--n-tot', type=int, default=10, metavar='STEPS', help='Total number of training steps')
+#TODO Mor: change workers to 5000
+parser.add_argument('--checkpoint-interval', type=int, default=5000, metavar='STEPS', help='Number of training steps between evaluations')
 # parser.add_argument('--random-initialization', type=int, default=2500, metavar='STEPS', help='Number of training steps in random policy')
 parser.add_argument('--player-replay-size', type=int, default=2500, help='Player\'s replay memory size')
 parser.add_argument('--update-memory-interval', type=int, default=100, metavar='STEPS', help='Number of steps between memory updates')
@@ -117,32 +130,100 @@ class Consts(object):
                          ('r', np.float32), ('t', np.int64), ('pi', np.float32, action_space), ('traj', np.int64),
                          ('ep', np.int64)])
 
-    # FR = 0
-    # ST = 1
-    # A = 2
-    # R = 3
-    # T = 4
-    # PI = 5
-    # TRAJ = 6
-    # EP = 7
-
-    outdir = os.path.join(base_dir, 'results')
-    logdir = os.path.join(base_dir, 'logs')
-
-    indir = os.path.join('/dev/shm/', username, 'gan_rl')
-    explore_dir = os.path.join(indir, "explore")
-    list_dir = os.path.join(indir, "list")
-    modeldir = os.path.join(indir, 'model')
-    rawdata = os.path.join(indir, 'rawdata')
-
-    screen_dir = os.path.join(explore_dir, "screen")
-    trajectory_dir = os.path.join(explore_dir, "trajectory")
-    list_old_path = os.path.join(list_dir, "old_explore")
-    snapshot_path = os.path.join(base_dir, "snapshot")
-
-    readlock = os.path.join(list_dir, "readlock_explore.npy")
-    writelock = os.path.join(list_dir, "writelock.npy")
-    episodelock = os.path.join(list_dir, "episodelock.npy")
-
+    outdir = os.path.join(base_dir, 'gan_rl')
+    # outdir = os.path.join(base_dir, 'results')
+    # logdir = os.path.join(base_dir, 'logs')
+    #
+    # indir = os.path.join('/dev/shm/', username, 'gan_rl')
+    # explore_dir = os.path.join(indir, "explore")
+    # list_dir = os.path.join(indir, "list")
+    # modeldir = os.path.join(indir, 'model')
+    # rawdata = os.path.join(indir, 'rawdata')
+    #
+    # screen_dir = os.path.join(explore_dir, "screen")
+    # trajectory_dir = os.path.join(explore_dir, "trajectory")
+    # list_old_path = os.path.join(list_dir, "old_explore")
+    # snapshot_path = os.path.join(base_dir, "snapshot")
+    #
+    # readlock = os.path.join(list_dir, "readlock_explore.npy")
+    # writelock = os.path.join(list_dir, "writelock.npy")
+    # episodelock = os.path.join(list_dir, "episodelock.npy")
 
 consts = Consts()
+
+
+class DirsAndLocksSingleton(object):
+    __instance = None
+
+    def __new__(cls):
+        if cls.__instance is None:
+            cls.__instance = super(DirsAndLocksSingleton, cls).__new__(cls)
+            cls.__instance.__initialized = False
+        return cls.__instance
+
+    def __init__(self, exp_name):
+        if self.__initialized:
+            return
+        self.__initialized = True
+        self.outdir = consts.outdir
+        self.exp_name = exp_name
+        self.root = os.path.join(self.outdir, self.exp_name)
+
+        self.logdir = os.path.join(base_dir, 'logs')
+        self.indir = os.path.join('/dev/shm/', username, 'gan_rl')
+        self.explore_dir = os.path.join(self.indir, "explore")
+        self.list_dir = os.path.join(self.indir, "list")
+        self.modeldir = os.path.join(self.indir, 'model')
+        self.rawdata = os.path.join(self.indir, 'rawdata')
+
+        self.screen_dir = os.path.join(self.explore_dir, "screen")
+        self.trajectory_dir = os.path.join(self.explore_dir, "trajectory")
+        self.list_old_path = os.path.join(self.list_dir, "old_explore")
+        self.snapshot_path = os.path.join(self.root, "snapshot")
+
+        self.readlock = os.path.join(self.list_dir, "readlock_explore.npy")
+        self.writelock = os.path.join(self.list_dir, "writelock.npy")
+        self.episodelock = os.path.join(self.list_dir, "episodelock.npy")
+
+        self.tensorboard_dir = os.path.join(self.root, 'tensorboard')
+        self.checkpoints_dir = os.path.join(self.root, 'checkpoints')
+        self.results_dir = os.path.join(self.root, 'results')
+        self.code_dir = os.path.join(self.root, 'code')
+        self.analysis_dir = os.path.join(self.root, 'analysis')
+        self.checkpoint = os.path.join(self.checkpoints_dir, 'checkpoint')
+        self.checkpoint_best = os.path.join(self.checkpoints_dir, 'checkpoint_best')
+        self.replay_dir = os.path.join(self.indir, self.exp_name)
+        self.scores_dir = os.path.join(self.root, 'scores')
+
+        if not os.path.exists(self.snapshot_path):
+            os.makedirs(self.snapshot_path)
+        if not os.path.exists(self.logdir):
+            os.makedirs(self.logdir)
+        if not os.path.exists(self.screen_dir):
+            os.makedirs(self.screen_dir)
+        if not os.path.exists(self.trajectory_dir):
+            os.makedirs(self.trajectory_dir)
+        if not os.path.exists(self.list_old_path):
+            os.makedirs(self.list_old_path)
+        if not os.path.exists(self.modeldir):
+            os.makedirs(self.modeldir)
+        if not os.path.exists(self.rawdata):
+            os.makedirs(self.rawdata)
+        if not os.path.exists(self.tensorboard_dir):
+            os.makedirs(self.tensorboard_dir)
+        if not os.path.exists(self.checkpoints_dir):
+            os.makedirs(self.checkpoints_dir)
+        if not os.path.exists(self.results_dir):
+            os.makedirs(self.results_dir)
+        if not os.path.exists(self.code_dir):
+            os.makedirs(self.code_dir)
+        if not os.path.exists(self.analysis_dir):
+            os.makedirs(self.analysis_dir)
+        if not os.path.exists(self.checkpoint):
+            os.makedirs(self.checkpoint)
+        if not os.path.exists(self.checkpoint_best):
+            os.makedirs(self.checkpoint_best)
+        if not os.path.exists(self.replay_dir):
+            os.makedirs(self.replay_dir)
+        if not os.path.exists(self.scores_dir):
+            os.makedirs(self.scores_dir)

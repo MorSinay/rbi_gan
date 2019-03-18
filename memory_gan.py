@@ -2,7 +2,7 @@ import torch.utils.data
 import numpy as np
 import torch
 import os
-from config import consts, args
+from config import consts, args, DirsAndLocksSingleton
 #from preprocess import lock_file, release_file
 
 class Memory(torch.utils.data.Dataset):
@@ -10,8 +10,7 @@ class Memory(torch.utils.data.Dataset):
     def __init__(self):
         super(Memory, self).__init__()
         self.n_steps = args.n_steps
-        # TODO Mor: update
-        self.screen_dir = consts.screen_dir
+        self.action_space = consts.action_space
 
     def __len__(self):
         return args.n_tot
@@ -19,35 +18,42 @@ class Memory(torch.utils.data.Dataset):
     def __getitem__(self, sample):
 
         sample, next_sample = sample
-        print("x")
-        return {'s': torch.from_numpy(sample['st']), 'r': torch.from_numpy(np.array(sample['r'])),
+
+        if not sample['t']:
+            s_tag = np.array(next_sample['st'])
+        else:
+            s_tag = np.zeros((1, self.action_space, self.action_space), dtype=np.float32)
+
+        return {'s': torch.from_numpy(np.array(sample['st'])), 'r': torch.from_numpy(np.array(sample['r'])),
                 'a': torch.from_numpy(np.array(sample['a'])), 't': torch.from_numpy(np.array(sample['t'])),
                 'pi': torch.from_numpy(sample['pi']),
-                's_tag': torch.from_numpy(next_sample['st']), 'pi_tag': torch.from_numpy(next_sample['pi'])}
+                's_tag': torch.from_numpy(s_tag), 'pi_tag': torch.from_numpy(next_sample['pi'])}
+
 
 class ReplayBatchSampler(object):
 
-    def __init__(self):
+    def __init__(self, exp_name):
 
         self.batch = args.batch
 
-        self.screen_dir = consts.screen_dir
-        self.trajectory_dir = consts.trajectory_dir
-        self.list_old_path = consts.list_old_path
+        self.dirs_locks = DirsAndLocksSingleton(exp_name)
+
+        self.trajectory_dir = self.dirs_locks.trajectory_dir
+        self.list_old_path = self.dirs_locks.list_old_path
 
         #TODO Mor: ?
         self.replay_updates_interval = args.replay_updates_interval
         self.replay_memory_size = args.replay_memory_size
-        self.readlock = consts.readlock
+        self.readlock = self.dirs_locks.readlock
 
-        #self.rec_type = consts.rec_type
+        self.rec_type = consts.rec_type
         self.n_steps = args.n_steps
 
     def __iter__(self):
 
         traj_old = 0
-        #replay_buffer = np.array([], dtype=self.rec_type)
-        replay_buffer = np.array([],dtype=consts.rec_type)
+        replay_buffer = np.array([], dtype=self.rec_type)
+
         flag = True
         while True:
 
@@ -80,7 +86,6 @@ class ReplayBatchSampler(object):
 
             minibatches = min(self.replay_updates_interval, int(len_replay_buffer / self.batch) - self.n_steps)
 
-            #TODO Mor: the indexes can return
             shuffle_indexes = np.random.choice(len_replay_buffer - self.n_steps, (minibatches, self.batch),
                                                replace=True)
 

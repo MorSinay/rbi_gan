@@ -9,7 +9,7 @@ import torch.nn as nn
 
 from config import consts, args
 import psutil
-import socket
+#import socket
 
 from model import BehavioralNet, DuelNet
 
@@ -18,18 +18,18 @@ from agent import Agent
 from environment import Env
 #from preprocess import release_file, lock_file, get_mc_value, get_td_value, h_torch, hinv_torch, get_expected_value, get_tde
 import os
-import time
-import shutil
+#import time
+#import shutil
 
 mem_threshold = consts.mem_threshold
 
 
 class GANAgent(Agent):
 
-    def __init__(self, player=False, choose=False, checkpoint=None):
+    def __init__(self, exp_name, player=False, choose=False, checkpoint=None):
 
         print("Learning with GANAgent")
-        super(GANAgent, self).__init__(checkpoint)
+        super(GANAgent, self).__init__(exp_name, checkpoint)
 
         use_cuda = not args.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if use_cuda else "cpu")
@@ -57,7 +57,7 @@ class GANAgent(Agent):
         else:
             # datasets
             self.train_dataset = Memory()
-            self.train_sampler = ReplayBatchSampler()
+            self.train_sampler = ReplayBatchSampler(exp_name)
             self.train_loader = torch.utils.data.DataLoader(self.train_dataset, batch_sampler=self.train_sampler,
                                                             num_workers=args.cpu_workers, pin_memory=True,
                                                             drop_last=False)
@@ -110,8 +110,8 @@ class GANAgent(Agent):
         return state['aux']
 
     def play(self, n_tot):
-        trajectory_dir = consts.trajectory_dir
-        readlock = consts.readlock
+        trajectory_dir = self.trajectory_dir
+        readlock = self.readlock
         # set initial episodes number
         # lock read
         fwrite = open(self.episodelock, "r+b")
@@ -241,7 +241,7 @@ class GANAgent(Agent):
 
             print("debug only ntot: {} from {}".format(i, n_tot))
 
-            # yield {'frames': self.frame}
+            yield {'frames': self.frame}
 
     def learn(self, n_interval, n_tot):
 
@@ -315,15 +315,13 @@ class GANAgent(Agent):
                     results['r'] = np.concatenate(results['r'])
                     results['s'] = np.concatenate(results['s'])
 
-                    # yield results
+                    yield results
                     self.beta_net.train()
                     self.value_net.train()
                     results = {key: [] for key in results}
 
                     if n >= n_tot:
                         break
-
-                # TODO: save result?
 
     def multiplay(self):
         return

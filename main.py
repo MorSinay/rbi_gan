@@ -10,7 +10,7 @@ def main():
     torch.set_num_threads(1000)
     print("Torch %d" % torch.get_num_threads())
     # print args of current run
-    logger.info("Welcome to Learning from Demonstration simulation")
+    logger.info("Welcome to Gan simulation")
     logger.info(' ' * 26 + 'Simulation Hyperparameters')
     for k, v in vars(args).items():
         logger.info(' ' * 26 + k + ': ' + str(v))

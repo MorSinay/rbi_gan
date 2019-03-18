@@ -1,6 +1,6 @@
 import numpy as np
 import os
-from config import consts, args
+from config import consts, args, DirsAndLocksSingleton
 import torch
 import time
 import shutil
@@ -9,12 +9,13 @@ import itertools
 
 class Agent(object):
 
-    def __init__(self, checkpoint=None, player=False):
+    def __init__(self, exp_name, checkpoint=None, player=False):
         # parameters
         # self.discount = args.discount
         # self.update_target_interval = args.update_target_interval
         # self.update_memory_interval = args.update_memory_interval
         # self.load_memory_interval = args.load_memory_interval
+        self.dirs_locks = DirsAndLocksSingleton(exp_name)
         self.action_space = consts.action_space
         # self.skip = args.skip
         # self.termination_reward = args.termination_reward
@@ -61,23 +62,16 @@ class Agent(object):
 
         self.checkpoint = checkpoint
         # self.best_player_dir = os.path.join(root_dir, "best")
-        self.snapshot_path = consts.snapshot_path
-        self.explore_dir = consts.explore_dir
-        self.list_dir = consts.list_dir
-        self.writelock = consts.writelock
-        self.episodelock = consts.episodelock
+        self.snapshot_path = self.dirs_locks.snapshot_path
+        self.explore_dir = self.dirs_locks.explore_dir
+        self.list_dir = self.dirs_locks.list_dir
+        self.writelock = self.dirs_locks.writelock
+        self.episodelock = self.dirs_locks.episodelock
         self.device = torch.device("cuda:%d" % self.cuda_id)
 
-        self.trajectory_dir = consts.trajectory_dir
-        self.screen_dir = consts.screen_dir
-        self.readlock = consts.readlock
-
-        if not os.path.exists(self.trajectory_dir):
-            os.makedirs(self.trajectory_dir)
-        if not os.path.exists(self.screen_dir):
-            os.makedirs(self.screen_dir)
-        if not os.path.exists(self.list_dir):
-            os.makedirs(self.list_dir)
+        self.trajectory_dir = self.dirs_locks.trajectory_dir
+        self.screen_dir = self.dirs_locks.screen_dir
+        self.readlock = self.dirs_locks.readlock
 
         np.save(self.writelock, 0)
         np.save(self.episodelock, 0)

@@ -15,7 +15,6 @@ from gan_rl_agent import GANAgent
 #agent_p = GANAgent(player=True, choose=False, checkpoint=None)
 #agent_p.play(4)
 
-
 try:
     agent_l = GANAgent(player=False, choose=False, checkpoint=None)
 except Exception as error:

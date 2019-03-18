@@ -14,7 +14,7 @@ from config import consts, args
 
 class Env(object):
 
-    def __init__(self):
+    def __init__(self, exp_name):
 
         self.dummyG = DummyGen()
         self.output_size = 10
