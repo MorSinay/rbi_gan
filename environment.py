@@ -14,10 +14,9 @@ from config import consts, args
 
 class Env(object):
 
-    def __init__(self, exp_name):
-
+    def __init__(self):
         self.dummyG = DummyGen()
-        self.output_size = 10
+        self.output_size = consts.action_space
         self.batch_size = args.env_batch_size
         use_cuda = not args.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if use_cuda else "cpu")
@@ -86,7 +85,7 @@ class Env(object):
 
             # TODO: need to check about the option to save all the test on a GPU
             # TODO: maybe save a GPU to tun only the test
-            new_state = torch.tensor(self.model.test())
+            new_state = torch.tensor(self.model.test(), dtype=torch.float)
 
             next_acc = torch.trace(new_state).item()
             self.reward = np.float32((next_acc - self.acc)/(1-self.acc))
@@ -176,7 +175,9 @@ class Model():
 
         model_path = os.path.join(self.model_dir, self.model_name)
 
-        assert (os.path.exists(model_path)), "No Model Found"
+        if not os.path.exists(model_path):
+            print("-------------NO MODEL FOUND--------------")
+            train_primarily_model(250, 128, 5)
 
         save_dict = torch.load(model_path)
         self.model.load_state_dict(save_dict['state_dict'])

@@ -62,13 +62,15 @@ parser.add_argument('--algorithm', type=str, default='action', help='[action|pol
 # # booleans
 boolean_feature("load-last-model", False, 'Load the last saved model')
 boolean_feature("load-best-model", False, 'Load the best saved model')
-# boolean_feature("learn", False, 'Learn from the observations')
-# boolean_feature("play", False, 'Test the learned model via playing')
-# boolean_feature("postprocess", False, 'Postprocess evaluation results')
-# boolean_feature("multiplay", False, 'Send samples to memory from multiple parallel players')
-# boolean_feature("evaluate", False, 'evaluate player')
-# boolean_feature("clean", False, 'Clean old trajectories')
-# boolean_feature("tensorboard", True, "Log results to tensorboard")
+boolean_feature("learn", False, 'Learn from the observations')
+#TODO: Mor - play
+boolean_feature("play", True, 'Test the learned model via playing')
+boolean_feature("postprocess", False, 'Postprocess evaluation results')
+boolean_feature("multiplay", False, 'Send samples to memory from multiple parallel players')
+boolean_feature("evaluate", False, 'evaluate player')
+boolean_feature("clean", False, 'Clean old trajectories')
+#TODO Mor: True
+boolean_feature("tensorboard", False, "Log results to tensorboard")
 boolean_feature("log-scores", True, "Log score results to NPY objects")
 #TODO Mor: return to 6
 parser.add_argument('--n-steps', type=int, default=1, metavar='STEPS', help='Number of steps for multi-step learning')
@@ -86,14 +88,16 @@ parser.add_argument('--cpu-workers', type=int, default=1, help='How many CPUs wi
 parser.add_argument('--cuda-default', type=int, default=0, help='Default GPU')
 #
 # #train parameters
-parser.add_argument('--update-target-interval', type=int, default=2500, metavar='STEPS', help='Number of traning iterations between q-target updates')
-#TODO Mor: change workers to 31600
+#TODO Mor: change update-target-interval to 2500
+parser.add_argument('--update-target-interval', type=int, default=1, metavar='STEPS', help='Number of traning iterations between q-target updates')
+#TODO Mor: change n-tot to 31600
 parser.add_argument('--n-tot', type=int, default=10, metavar='STEPS', help='Total number of training steps')
-#TODO Mor: change workers to 5000
-parser.add_argument('--checkpoint-interval', type=int, default=5000, metavar='STEPS', help='Number of training steps between evaluations')
+#TODO Mor: change checkpoint-interval to 5000
+parser.add_argument('--checkpoint-interval', type=int, default=2, metavar='STEPS', help='Number of training steps between evaluations')
 # parser.add_argument('--random-initialization', type=int, default=2500, metavar='STEPS', help='Number of training steps in random policy')
 parser.add_argument('--player-replay-size', type=int, default=2500, help='Player\'s replay memory size')
-parser.add_argument('--update-memory-interval', type=int, default=100, metavar='STEPS', help='Number of steps between memory updates')
+#TODO Mor: change update-memory-interval to 100
+parser.add_argument('--update-memory-interval', type=int, default=1, metavar='STEPS', help='Number of steps between memory updates')
 parser.add_argument('--load-memory-interval', type=int, default=250, metavar='STEPS', help='Number of steps between memory loads')
 parser.add_argument('--replay-updates-interval', type=int, default=5000, metavar='STEPS', help='Number of training iterations between q-target updates')
 parser.add_argument('--replay-memory-size', type=int, default=2000000, help='Total replay exploit memory size')
@@ -130,11 +134,23 @@ class Consts(object):
                          ('r', np.float32), ('t', np.int64), ('pi', np.float32, action_space), ('traj', np.int64),
                          ('ep', np.int64)])
 
-    outdir = os.path.join(base_dir, 'gan_rl')
-    # outdir = os.path.join(base_dir, 'results')
-    # logdir = os.path.join(base_dir, 'logs')
+    outdir = os.path.join(base_dir, 'results')
+    indir = os.path.join('/dev/shm/', username, 'gan_rl')
+    logdir = os.path.join(base_dir, 'logs')
+    modeldir = os.path.join(indir, 'model')
+    rawdata = os.path.join(indir, 'rawdata')
+
+    if not os.path.exists(logdir):
+        os.makedirs(logdir)
+    if not os.path.exists(modeldir):
+        os.makedirs(modeldir)
+    if not os.path.exists(rawdata):
+        os.makedirs(rawdata)
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+
     #
-    # indir = os.path.join('/dev/shm/', username, 'gan_rl')
+    #
     # explore_dir = os.path.join(indir, "explore")
     # list_dir = os.path.join(indir, "list")
     # modeldir = os.path.join(indir, 'model')
@@ -152,31 +168,27 @@ class Consts(object):
 consts = Consts()
 
 
-class DirsAndLocksSingleton(object):
-    __instance = None
 
-    def __new__(cls):
-        if cls.__instance is None:
-            cls.__instance = super(DirsAndLocksSingleton, cls).__new__(cls)
-            cls.__instance.__initialized = False
-        return cls.__instance
+class Singleton(type):
+    _instances = {}
 
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class DirsAndLocksSingleton(metaclass=Singleton):
     def __init__(self, exp_name):
-        if self.__initialized:
-            return
-        self.__initialized = True
         self.outdir = consts.outdir
         self.exp_name = exp_name
         self.root = os.path.join(self.outdir, self.exp_name)
 
-        self.logdir = os.path.join(base_dir, 'logs')
-        self.indir = os.path.join('/dev/shm/', username, 'gan_rl')
+        self.indir = consts.indir
         self.explore_dir = os.path.join(self.indir, "explore")
         self.list_dir = os.path.join(self.indir, "list")
-        self.modeldir = os.path.join(self.indir, 'model')
-        self.rawdata = os.path.join(self.indir, 'rawdata')
 
-        self.screen_dir = os.path.join(self.explore_dir, "screen")
+        #self.screen_dir = os.path.join(self.explore_dir, "screen")
         self.trajectory_dir = os.path.join(self.explore_dir, "trajectory")
         self.list_old_path = os.path.join(self.list_dir, "old_explore")
         self.snapshot_path = os.path.join(self.root, "snapshot")
@@ -195,20 +207,12 @@ class DirsAndLocksSingleton(object):
         self.replay_dir = os.path.join(self.indir, self.exp_name)
         self.scores_dir = os.path.join(self.root, 'scores')
 
-        if not os.path.exists(self.snapshot_path):
-            os.makedirs(self.snapshot_path)
-        if not os.path.exists(self.logdir):
-            os.makedirs(self.logdir)
-        if not os.path.exists(self.screen_dir):
-            os.makedirs(self.screen_dir)
+#        if not os.path.exists(self.screen_dir):
+ #           os.makedirs(self.screen_dir)
         if not os.path.exists(self.trajectory_dir):
             os.makedirs(self.trajectory_dir)
         if not os.path.exists(self.list_old_path):
             os.makedirs(self.list_old_path)
-        if not os.path.exists(self.modeldir):
-            os.makedirs(self.modeldir)
-        if not os.path.exists(self.rawdata):
-            os.makedirs(self.rawdata)
         if not os.path.exists(self.tensorboard_dir):
             os.makedirs(self.tensorboard_dir)
         if not os.path.exists(self.checkpoints_dir):
@@ -219,11 +223,83 @@ class DirsAndLocksSingleton(object):
             os.makedirs(self.code_dir)
         if not os.path.exists(self.analysis_dir):
             os.makedirs(self.analysis_dir)
-        if not os.path.exists(self.checkpoint):
-            os.makedirs(self.checkpoint)
-        if not os.path.exists(self.checkpoint_best):
-            os.makedirs(self.checkpoint_best)
-        if not os.path.exists(self.replay_dir):
-            os.makedirs(self.replay_dir)
+        #if not os.path.exists(self.replay_dir):
+         #   os.makedirs(self.replay_dir)
         if not os.path.exists(self.scores_dir):
             os.makedirs(self.scores_dir)
+
+
+
+# class DirsAndLocksSingleton(object):
+#
+#     __instance = None
+#
+#     def __new__(cls, exp_name):
+#         if cls.__instance is None:
+#             cls.__instance = super(DirsAndLocksSingleton, cls).__new__(cls, exp_name)
+#             cls.__instance.__initialized = False
+#         return cls.__instance
+#
+#     def __init__(self, exp_name):
+#         if self.__initialized:
+#             return
+#         self.__initialized = True
+#         self.outdir = consts.outdir
+#         self.exp_name = exp_name
+#         self.root = os.path.join(self.outdir, self.exp_name)
+#
+#         self.indir = os.path.join('/dev/shm/', username, 'gan_rl')
+#         self.explore_dir = os.path.join(self.indir, "explore")
+#         self.list_dir = os.path.join(self.indir, "list")
+#         self.modeldir = os.path.join(self.indir, 'model')
+#         self.rawdata = os.path.join(self.indir, 'rawdata')
+#
+#         self.screen_dir = os.path.join(self.explore_dir, "screen")
+#         self.trajectory_dir = os.path.join(self.explore_dir, "trajectory")
+#         self.list_old_path = os.path.join(self.list_dir, "old_explore")
+#         self.snapshot_path = os.path.join(self.root, "snapshot")
+#
+#         self.readlock = os.path.join(self.list_dir, "readlock_explore.npy")
+#         self.writelock = os.path.join(self.list_dir, "writelock.npy")
+#         self.episodelock = os.path.join(self.list_dir, "episodelock.npy")
+#
+#         self.tensorboard_dir = os.path.join(self.root, 'tensorboard')
+#         self.checkpoints_dir = os.path.join(self.root, 'checkpoints')
+#         self.results_dir = os.path.join(self.root, 'results')
+#         self.code_dir = os.path.join(self.root, 'code')
+#         self.analysis_dir = os.path.join(self.root, 'analysis')
+#         self.checkpoint = os.path.join(self.checkpoints_dir, 'checkpoint')
+#         self.checkpoint_best = os.path.join(self.checkpoints_dir, 'checkpoint_best')
+#         self.replay_dir = os.path.join(self.indir, self.exp_name)
+#         self.scores_dir = os.path.join(self.root, 'scores')
+#
+#         if not os.path.exists(self.snapshot_path):
+#             os.makedirs(self.snapshot_path)
+#         if not os.path.exists(self.screen_dir):
+#             os.makedirs(self.screen_dir)
+#         if not os.path.exists(self.trajectory_dir):
+#             os.makedirs(self.trajectory_dir)
+#         if not os.path.exists(self.list_old_path):
+#             os.makedirs(self.list_old_path)
+#         if not os.path.exists(self.modeldir):
+#             os.makedirs(self.modeldir)
+#         if not os.path.exists(self.rawdata):
+#             os.makedirs(self.rawdata)
+#         if not os.path.exists(self.tensorboard_dir):
+#             os.makedirs(self.tensorboard_dir)
+#         if not os.path.exists(self.checkpoints_dir):
+#             os.makedirs(self.checkpoints_dir)
+#         if not os.path.exists(self.results_dir):
+#             os.makedirs(self.results_dir)
+#         if not os.path.exists(self.code_dir):
+#             os.makedirs(self.code_dir)
+#         if not os.path.exists(self.analysis_dir):
+#             os.makedirs(self.analysis_dir)
+#         if not os.path.exists(self.checkpoint):
+#             os.makedirs(self.checkpoint)
+#         if not os.path.exists(self.checkpoint_best):
+#             os.makedirs(self.checkpoint_best)
+#         if not os.path.exists(self.replay_dir):
+#             os.makedirs(self.replay_dir)
+#         if not os.path.exists(self.scores_dir):
+#             os.makedirs(self.scores_dir)

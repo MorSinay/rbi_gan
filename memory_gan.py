@@ -22,7 +22,7 @@ class Memory(torch.utils.data.Dataset):
         if not sample['t']:
             s_tag = np.array(next_sample['st'])
         else:
-            s_tag = np.zeros((1, self.action_space, self.action_space), dtype=np.float32)
+            s_tag = np.zeros((self.action_space, self.action_space), dtype=np.float32)
 
         return {'s': torch.from_numpy(np.array(sample['st'])), 'r': torch.from_numpy(np.array(sample['r'])),
                 'a': torch.from_numpy(np.array(sample['a'])), 't': torch.from_numpy(np.array(sample['t'])),
@@ -54,7 +54,7 @@ class ReplayBatchSampler(object):
         traj_old = 0
         replay_buffer = np.array([], dtype=self.rec_type)
 
-        flag = True
+        # flag = True
         while True:
 
             # load new memory
@@ -64,13 +64,13 @@ class ReplayBatchSampler(object):
             fread.seek(0)
             np.save(fread, [])
             fread.close()
-            if flag:
-                traj_sorted = list(range(4))
-
+            # if flag:
+            traj_sorted = list(range(16))
+            #
             if not len(traj_sorted):
-                if flag:
-                    break
-                continue
+            #     if flag:
+            #         break
+                 continue
 
             replay = np.concatenate([np.load(os.path.join(self.trajectory_dir, "%d.npy" % traj)) for traj in traj_sorted], axis=0)
 
@@ -93,7 +93,6 @@ class ReplayBatchSampler(object):
 
             for i in range(minibatches):
                 samples = shuffle_indexes[i]
-                print("y")
                 yield list(zip(replay_buffer[samples], replay_buffer[samples + self.n_steps]))
 
     def __len__(self):

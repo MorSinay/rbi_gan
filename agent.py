@@ -12,9 +12,9 @@ class Agent(object):
     def __init__(self, exp_name, checkpoint=None, player=False):
         # parameters
         # self.discount = args.discount
-        # self.update_target_interval = args.update_target_interval
-        # self.update_memory_interval = args.update_memory_interval
-        # self.load_memory_interval = args.load_memory_interval
+        self.update_target_interval = args.update_target_interval
+        self.update_memory_interval = args.update_memory_interval
+        self.load_memory_interval = args.load_memory_interval
         self.dirs_locks = DirsAndLocksSingleton(exp_name)
         self.action_space = consts.action_space
         # self.skip = args.skip
@@ -61,6 +61,7 @@ class Agent(object):
         #self.rec_type = consts.rec_type
 
         self.checkpoint = checkpoint
+        self.root_dir = self.dirs_locks.root
         # self.best_player_dir = os.path.join(root_dir, "best")
         self.snapshot_path = self.dirs_locks.snapshot_path
         self.explore_dir = self.dirs_locks.explore_dir
@@ -70,7 +71,7 @@ class Agent(object):
         self.device = torch.device("cuda:%d" % self.cuda_id)
 
         self.trajectory_dir = self.dirs_locks.trajectory_dir
-        self.screen_dir = self.dirs_locks.screen_dir
+#        self.screen_dir = self.dirs_locks.screen_dir
         self.readlock = self.dirs_locks.readlock
 
         np.save(self.writelock, 0)
@@ -122,44 +123,40 @@ class Agent(object):
     #
     #     if behavioral_avg_frame is not None:
     #         self.behavioral_avg_frame = behavioral_avg_frame
-    #
-    # def resume(self, model_path):
-    #     aux = self.load_checkpoint(model_path)
-    #     return aux
-    #
-    # def clean(self):
-    #
-    #     screen_dir = os.path.join(self.explore_dir, "screen")
-    #     trajectory_dir = os.path.join(self.explore_dir, "trajectory")
-    #
-    #     for i in itertools.count():
-    #
-    #         time.sleep(2)
-    #
-    #         try:
-    #             del_inf = np.load(os.path.join(self.list_dir, "old_explore.npy"))
-    #         except (IOError, ValueError):
-    #             continue
-    #         traj_min = del_inf[0] - 32
-    #         episode_list = set()
-    #
-    #         for traj in os.listdir(trajectory_dir):
-    #             traj_num = int(traj.split(".")[0])
-    #             if traj_num < traj_min:
-    #                 traj_data = np.load(os.path.join(trajectory_dir, traj))
-    #                 for d in traj_data['ep']:
-    #                     episode_list.add(d)
-    #                 os.remove(os.path.join(trajectory_dir, traj))
-    #
-    #         for ep in episode_list:
-    #             shutil.rmtree(os.path.join(screen_dir, str(ep)))
-    #
-    #         if not i % 50:
-    #             try:
-    #                 self.load_checkpoint(self.snapshot_path)
-    #                 if self.n_offset >= args.n_tot:
-    #                     break
-    #             except:
-    #                 pass
-    #
-    #     shutil.rmtree(self.root_dir)
+
+    def resume(self, model_path):
+        aux = self.load_checkpoint(model_path)
+        return aux
+
+    def clean(self):
+
+        trajectory_dir = os.path.join(self.explore_dir, "trajectory")
+
+        for i in itertools.count():
+
+            time.sleep(2)
+
+            try:
+                del_inf = np.load(os.path.join(self.list_dir, "old_explore.npy"))
+            except (IOError, ValueError):
+                continue
+            traj_min = del_inf[0] - 32
+            episode_list = set()
+
+            for traj in os.listdir(trajectory_dir):
+                traj_num = int(traj.split(".")[0])
+                if traj_num < traj_min:
+                    traj_data = np.load(os.path.join(trajectory_dir, traj))
+                    for d in traj_data['ep']:
+                        episode_list.add(d)
+                    os.remove(os.path.join(trajectory_dir, traj))
+
+            if not i % 50:
+                try:
+                    self.load_checkpoint(self.snapshot_path)
+                    if self.n_offset >= args.n_tot:
+                        break
+                except:
+                    pass
+
+        shutil.rmtree(self.root_dir)

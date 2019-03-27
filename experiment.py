@@ -4,7 +4,7 @@ import sys
 import numpy as np
 #import pandas as pd
 
-from tensorboard import SummaryWriter
+#from tensorboardX import SummaryWriter
 
 from tqdm import tqdm
 import time
@@ -28,6 +28,7 @@ class Experiment(object):
         self.load_best = args.load_best_model
         self.load_last = args.load_last_model
         self.resume = args.resume
+        self.log_scores = args.log_scores
 
         temp_name = "%s_%s_%s_exp" % (args.game, args.algorithm, args.identifier)
         self.exp_name = ""
@@ -168,7 +169,7 @@ class Experiment(object):
                         self.writer.add_histogram("value_net/%s" % name, param.clone().cpu().data.numpy(), n + n_offset,
                                                   'fd')
 
-            self.print_actions_statistics(train_results['a_agent'], avg_train_loss_beta, avg_train_loss_v_beta)
+            self.print_actions_statistics(train_results['a_player'], avg_train_loss_beta, avg_train_loss_v_beta)
             agent.save_checkpoint(self.checkpoint, {'n': n + n_offset})
 
         return agent

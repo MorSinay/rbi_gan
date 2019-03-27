@@ -6,6 +6,7 @@ import numpy as np
 from tqdm import tqdm
 from torch.nn import functional as F
 import torch.nn as nn
+import sys
 
 from config import consts, args
 import psutil
@@ -37,6 +38,11 @@ class GANAgent(Agent):
         self.beta_net = BehavioralNet()
         self.value_net = DuelNet()
         self.target_net = DuelNet()
+
+        if torch.cuda.device_count() > 1:
+            self.beta_net = nn.DataParallel(self.beta_net)
+            self.value_net = nn.DataParallel(self.value_net)
+            self.target_net = nn.DataParallel(self.target_net)
 
         self.beta_net.to(self.device)
         self.value_net.to(self.device)
@@ -72,13 +78,12 @@ class GANAgent(Agent):
     def save_checkpoint(self, path, aux=None):
 
         if torch.cuda.device_count() > 1:
-            assert (False), "save_checkpoint error"
-            # state = {'beta_net': self.beta_net.module.state_dict(),
-            #          'value_net': self.value_net.module.state_dict(),
-            #          'target_net': self.target_net.module.state_dict(),
-            #          'optimizer_value': self.optimizer_value.state_dict(),
-            #          'optimizer_beta': self.optimizer_beta.state_dict(),
-            #          'aux': aux}
+            state = {'beta_net': self.beta_net.module.state_dict(),
+                     'value_net': self.value_net.module.state_dict(),
+                     'target_net': self.target_net.module.state_dict(),
+                     'optimizer_value': self.optimizer_value.state_dict(),
+                     'optimizer_beta': self.optimizer_beta.state_dict(),
+                     'aux': aux}
         else:
             state = {'beta_net': self.beta_net.state_dict(),
                      'value_net': self.value_net.state_dict(),
@@ -91,13 +96,17 @@ class GANAgent(Agent):
 
     def load_checkpoint(self, path):
 
+        if not os.path.exists(path):
+            #TODO Mor: why path exists?
+            print("load_checkpoint - NO CHECK POINT")
+            return {'n': 0}
+
         state = torch.load(path, map_location="cuda:%d" % self.cuda_id)
 
         if torch.cuda.device_count() > 1:
-            assert (False), "load_checkpoint error"
-            # self.beta_net.module.load_state_dict(state['beta_net'])
-            # self.value_net.module.load_state_dict(state['value_net'])
-            # self.target_net.module.load_state_dict(state['target_net'])
+            self.beta_net.module.load_state_dict(state['beta_net'])
+            self.value_net.module.load_state_dict(state['value_net'])
+            self.target_net.module.load_state_dict(state['target_net'])
         else:
             self.beta_net.load_state_dict(state['beta_net'])
             self.value_net.load_state_dict(state['value_net'])
@@ -152,15 +161,16 @@ class GANAgent(Agent):
                     self.beta_net.eval()
                     self.value_net.eval()
 
-                s = self.env.s.to(self.device)
+                s = self.env.state.to(self.device)
+                s_flat = s.view(-1, self.action_space*self.action_space)
                 # get aux data
 
-                beta = self.beta_net(s)
+                beta = self.beta_net(s_flat)
                 beta = F.softmax(beta.detach(), dim=1)
-                beta = beta.data.cpu().numpy()
+                beta = beta.data.cpu().numpy().reshape(self.action_space)
 
-                q = self.value_net(s)
-                q = q.data.cpu().numpy()
+                q = self.value_net(s_flat)
+                q = q.data.cpu().numpy().reshape(self.action_space)
 
                 pi = beta.copy()
                 q_temp = q.copy()
@@ -194,8 +204,8 @@ class GANAgent(Agent):
                 policys[-1].append(pi_mix)
                 rewards[-1].append(self.env.reward)
 
-                a = np.array((self.frame, states[-1][-1].cpu().numpy(), -1, rewards[-1][-1], ts[-1][-1],
-                              policys[-1][-1].cpu().numpy(), -1, episode_num), dtype=consts.rec_type)
+                a = np.array((self.frame, states[-1][-1].cpu().numpy(), a, rewards[-1][-1], ts[-1][-1],
+                              policys[-1][-1], -1, episode_num), dtype=consts.rec_type)
 
                 episode.append(a)
 
@@ -241,11 +251,17 @@ class GANAgent(Agent):
 
             print("debug only ntot: {} from {}".format(i, n_tot))
 
-            yield {'frames': self.frame}
+            try:
+                yield {'frames': self.frame}
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(exc_type, fname, exc_tb.tb_lineno)
+                print(e)
 
     def learn(self, n_interval, n_tot):
 
-        print("start")
+        print("start learn")
 
         self.beta_net.train()
         self.value_net.train()
@@ -256,7 +272,6 @@ class GANAgent(Agent):
 
         for n, sample in tqdm(enumerate(self.train_loader)):
 
-            print("z")
             s = sample['s'].to(self.device, non_blocking=True)
             a = sample['a'].to(self.device, non_blocking=True)
             r = sample['r'].to(self.device, non_blocking=True)
@@ -272,9 +287,17 @@ class GANAgent(Agent):
 
             # dqn
             q_tag = self.target_net(s_tag).detach()
+            #TODO Mor: check
             q = self.value_net(s)
-            target_value = r + args.gamma * (pi_tag*q_tag).sum()
-            loss_q = self.q_loss(q, target_value)
+
+            ind = range(q.shape[0])
+            q_a = q[ind, a]
+            # index = torch.unsqueeze(a, 1)
+            # one_hot = torch.LongTensor(q.shape).zero_().to(self.device)
+            # one_hot = one_hot.scatter(1, index, 1)
+
+            target_value = r + args.gamma * (pi_tag*q_tag).sum(dim=1)
+            loss_q = (self.q_loss(q_a, target_value)).mean()
 
             self.optimizer_beta.zero_grad()
             loss_beta.backward()
@@ -286,12 +309,11 @@ class GANAgent(Agent):
 
             # collect actions statistics
             if not n % 50:
-                print("k")
                 # add results
-                results['a_player'].append(a[:, 0].data.cpu().numpy())
-                results['r'].append(r[:, 0].data.cpu().numpy())
+                results['a_player'].append(a.data.cpu().numpy())
+                results['r'].append(r.data.cpu().numpy())
                 results['s'].append(s.data.cpu().numpy())
-                results['t'].append(t[:, 0].data.cpu().numpy())
+                results['t'].append(t.data.cpu().numpy())
                 results['pi'].append(pi.data.cpu().numpy())
                 results['s_tag'].append(s_tag.data.cpu().numpy())
                 results['pi_tag'].append(pi_tag.data.cpu().numpy())
@@ -314,6 +336,10 @@ class GANAgent(Agent):
                     results['a_player'] = np.concatenate(results['a_player'])
                     results['r'] = np.concatenate(results['r'])
                     results['s'] = np.concatenate(results['s'])
+                    results['t'] = np.concatenate(results['t'])
+                    results['pi'] = np.concatenate(results['pi'])
+                    results['s_tag'] = np.concatenate(results['s_tag'])
+                    results['pi_tag'] = np.concatenate(results['pi_tag'])
 
                     yield results
                     self.beta_net.train()
