@@ -60,8 +60,6 @@ class Env(object):
             next_acc = torch.trace(new_state).item()
             self.reward = np.float32((next_acc - self.acc)/(1-self.acc))
 
-            print("debug only acc {:.2f} nextAcc {:.2f} reward {:.2f} k {} kmax {} t {}".format(self.acc, next_acc, self.reward, self.k, self.max_k, self.t))
-
             # TODO: add boost for the reward after some threshold
             assert ((self.reward <= 1) and (self.reward >= -1)), "step function - accuracy problem"
 
@@ -89,8 +87,6 @@ class Env(object):
 
             next_acc = torch.trace(new_state).item()
             self.reward = np.float32((next_acc - self.acc)/(1-self.acc))
-
-            print("debug only acc {:.2f} nextAcc {:.2f} reward {:.2f} k {} kmax {} t {}".format(self.acc, next_acc, self.reward, self.k, self.max_k, self.t))
 
             # TODO: add boost for the reward after some threshold
             assert ((self.reward <= 1) and (self.reward >= -1)), "step function - accuracy problem"
@@ -123,7 +119,7 @@ class Model():
 
     def train(self, train_loader):
         self.model.train()
-        for batch_idx, (data, label) in enumerate(tqdm(train_loader)):
+        for batch_idx, (data, label) in tqdm(enumerate(tqdm(train_loader))):
             data, label = data.to(self.device), label.to(self.device)
             self.optimizer.zero_grad()
             output = self.model(data)
@@ -198,8 +194,9 @@ class Model():
                                         # transforms.Normalize(mean=(0.5,0.5,0.5), std=(0.5,0.5,0.5))
                                         ])
 
+
         dataset = datasets.FashionMNIST(root=consts.rawdata, train=False, transform=transform,
-                                        download=True)
+                                        download=False)
 
         self.test_loader = torch.utils.data.DataLoader(dataset=dataset,
                                                        batch_size=self.test_loader_batch, shuffle=False)

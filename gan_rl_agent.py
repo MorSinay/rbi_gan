@@ -97,9 +97,7 @@ class GANAgent(Agent):
     def load_checkpoint(self, path):
 
         if not os.path.exists(path):
-            #TODO Mor: why path exists?
-            print("load_checkpoint - NO CHECK POINT")
-            return {'n': 0}
+            assert(False), "load_checkpoint"
 
         state = torch.load(path, map_location="cuda:%d" % self.cuda_id)
 
@@ -139,13 +137,6 @@ class GANAgent(Agent):
             states = [[]]
             ts = [[]]
             policys = [[]]
-
-            # while not fix:
-            #     try:
-            #         self.load_checkpoint(self.snapshot_path)
-            #         break
-            #     except:
-            #         time.sleep(0.5)
 
             self.beta_net.eval()
             self.value_net.eval()
@@ -204,10 +195,10 @@ class GANAgent(Agent):
                 policys[-1].append(pi_mix)
                 rewards[-1].append(self.env.reward)
 
-                a = np.array((self.frame, states[-1][-1].cpu().numpy(), a, rewards[-1][-1], ts[-1][-1],
+                episode_format = np.array((self.frame, states[-1][-1].cpu().numpy(), a, rewards[-1][-1], ts[-1][-1],
                               policys[-1][-1], -1, episode_num), dtype=consts.rec_type)
 
-                episode.append(a)
+                episode.append(episode_format)
 
                 self.frame += 1
 
@@ -216,8 +207,6 @@ class GANAgent(Agent):
                 episode_df = np.stack(episode)
 
                 trajectory.append(episode_df)
-
-                print("gan | t: %d\t" % self.env.t)
 
                 # read
                 fwrite = open(self.episodelock, "r+b")
@@ -230,6 +219,8 @@ class GANAgent(Agent):
 
                     # write if enough space is available
                     if psutil.virtual_memory().available >= mem_threshold:
+
+                        print("write trajectory")
                         # read
                         fwrite = open(self.writelock, "r+b")
                         traj_num = np.load(fwrite).item()
@@ -249,8 +240,6 @@ class GANAgent(Agent):
                         np.save(fread, np.append(traj_list, traj_num))
                         fread.close()
 
-            print("debug only ntot: {} from {}".format(i, n_tot))
-
             try:
                 yield {'frames': self.frame}
             except Exception as e:
@@ -262,6 +251,7 @@ class GANAgent(Agent):
     def learn(self, n_interval, n_tot):
 
         print("start learn")
+        self.save_checkpoint(self.snapshot_path, {'n': 0})
 
         self.beta_net.train()
         self.value_net.train()
@@ -270,84 +260,92 @@ class GANAgent(Agent):
         results = {'n': [], 'loss_q': [], 'loss_beta': [], 'a_player': [], 'loss_std': [],
                    'r': [], 's': [], 't': [], 'pi': [], 's_tag': [], 'pi_tag': []}
 
-        for n, sample in tqdm(enumerate(self.train_loader)):
+        try:
+            for n, sample in tqdm(enumerate(self.train_loader)):
+                print("learn learn")
 
-            s = sample['s'].to(self.device, non_blocking=True)
-            a = sample['a'].to(self.device, non_blocking=True)
-            r = sample['r'].to(self.device, non_blocking=True)
-            t = sample['t'].to(self.device, non_blocking=True)
-            pi = sample['pi'].to(self.device, non_blocking=True)
-            s_tag = sample['s_tag'].to(self.device, non_blocking=True)
-            pi_tag = sample['pi_tag'].to(self.device, non_blocking=True)
+                s = sample['s'].to(self.device, non_blocking=True)
+                a = sample['a'].to(self.device, non_blocking=True)
+                r = sample['r'].to(self.device, non_blocking=True)
+                t = sample['t'].to(self.device, non_blocking=True)
+                pi = sample['pi'].to(self.device, non_blocking=True)
+                s_tag = sample['s_tag'].to(self.device, non_blocking=True)
+                pi_tag = sample['pi_tag'].to(self.device, non_blocking=True)
 
-            # Behavioral nets
-            beta = self.beta_net(s)
-            beta_log = F.log_softmax(beta, dim=1)
-            loss_beta = (-beta_log * pi).sum(dim=1).mean()
+                # Behavioral nets
+                beta = self.beta_net(s)
+                beta_log = F.log_softmax(beta, dim=1)
+                loss_beta = (-beta_log * pi).sum(dim=1).mean()
 
-            # dqn
-            q_tag = self.target_net(s_tag).detach()
-            #TODO Mor: check
-            q = self.value_net(s)
+                # dqn
+                q_tag = self.target_net(s_tag).detach()
+                #TODO Mor: check
+                q = self.value_net(s)
 
-            ind = range(q.shape[0])
-            q_a = q[ind, a]
-            # index = torch.unsqueeze(a, 1)
-            # one_hot = torch.LongTensor(q.shape).zero_().to(self.device)
-            # one_hot = one_hot.scatter(1, index, 1)
+                ind = range(q.shape[0])
+                q_a = q[ind, a]
+                # index = torch.unsqueeze(a, 1)
+                # one_hot = torch.LongTensor(q.shape).zero_().to(self.device)
+                # one_hot = one_hot.scatter(1, index, 1)
 
-            target_value = r + args.gamma * (pi_tag*q_tag).sum(dim=1)
-            loss_q = (self.q_loss(q_a, target_value)).mean()
+                target_value = r + args.gamma * (pi_tag*q_tag).sum(dim=1)
+                loss_q = (self.q_loss(q_a, target_value)).mean()
 
-            self.optimizer_beta.zero_grad()
-            loss_beta.backward()
-            self.optimizer_beta.step()
+                self.optimizer_beta.zero_grad()
+                loss_beta.backward()
+                self.optimizer_beta.step()
 
-            self.optimizer_value.zero_grad()
-            loss_q.backward()
-            self.optimizer_value.step()
+                self.optimizer_value.zero_grad()
+                loss_q.backward()
+                self.optimizer_value.step()
 
-            # collect actions statistics
-            if not n % 50:
-                # add results
-                results['a_player'].append(a.data.cpu().numpy())
-                results['r'].append(r.data.cpu().numpy())
-                results['s'].append(s.data.cpu().numpy())
-                results['t'].append(t.data.cpu().numpy())
-                results['pi'].append(pi.data.cpu().numpy())
-                results['s_tag'].append(s_tag.data.cpu().numpy())
-                results['pi_tag'].append(pi_tag.data.cpu().numpy())
+                # collect actions statistics
+                if not n % 50:
+                    # add results
+                    results['a_player'].append(a.data.cpu().numpy())
+                    results['r'].append(r.data.cpu().numpy())
+                    results['s'].append(s.data.cpu().numpy())
+                    results['t'].append(t.data.cpu().numpy())
+                    results['pi'].append(pi.data.cpu().numpy())
+                    results['s_tag'].append(s_tag.data.cpu().numpy())
+                    results['pi_tag'].append(pi_tag.data.cpu().numpy())
 
-                # add results
-                results['loss_beta'].append(loss_beta.data.cpu().numpy())
-                results['loss_q'].append(loss_q.data.cpu().numpy())
-                results['loss_std'].append(0)
-                results['n'].append(n)
+                    # add results
+                    results['loss_beta'].append(loss_beta.data.cpu().numpy())
+                    results['loss_q'].append(loss_q.data.cpu().numpy())
+                    results['loss_std'].append(0)
+                    results['n'].append(n)
 
-                if not n % self.update_memory_interval:
-                    # save agent state
-                    self.save_checkpoint(self.snapshot_path, {'n': n})
+                    if not n % self.update_memory_interval:
+                        # save agent state
+                        self.save_checkpoint(self.snapshot_path, {'n': n})
 
-                if not n % self.update_target_interval:
-                    # save agent state
-                    self.target_net.load_state_dict(self.value_net.state_dict())
+                    if not n % self.update_target_interval:
+                        # save agent state
+                        self.target_net.load_state_dict(self.value_net.state_dict())
 
-                if not n % n_interval:
-                    results['a_player'] = np.concatenate(results['a_player'])
-                    results['r'] = np.concatenate(results['r'])
-                    results['s'] = np.concatenate(results['s'])
-                    results['t'] = np.concatenate(results['t'])
-                    results['pi'] = np.concatenate(results['pi'])
-                    results['s_tag'] = np.concatenate(results['s_tag'])
-                    results['pi_tag'] = np.concatenate(results['pi_tag'])
+                    if not n % n_interval:
+                        results['a_player'] = np.concatenate(results['a_player'])
+                        results['r'] = np.concatenate(results['r'])
+                        results['s'] = np.concatenate(results['s'])
+                        results['t'] = np.concatenate(results['t'])
+                        results['pi'] = np.concatenate(results['pi'])
+                        results['s_tag'] = np.concatenate(results['s_tag'])
+                        results['pi_tag'] = np.concatenate(results['pi_tag'])
 
-                    yield results
-                    self.beta_net.train()
-                    self.value_net.train()
-                    results = {key: [] for key in results}
+                        yield results
+                        self.beta_net.train()
+                        self.value_net.train()
+                        results = {key: [] for key in results}
 
-                    if n >= n_tot:
-                        break
+                        if n >= n_tot:
+                            break
+
+        except Exception as e:
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(exc_type, fname, exc_tb.tb_lineno)
+            print(e)
 
     def multiplay(self):
         return

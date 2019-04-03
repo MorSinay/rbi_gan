@@ -142,7 +142,9 @@ class Experiment(object):
         logger.info("Begin Behavioral Distributional learning experiment")
         logger.info("Game: %s " % args.game)
 
-        for n, train_results in enumerate(learn):
+        for n, train_results in tqdm(enumerate(learn)):
+
+            print("print_learn_experiment")
 
             n = n * args.checkpoint_interval
 
@@ -227,7 +229,7 @@ class Experiment(object):
 
         for i, step in tqdm(enumerate(player)):
             results["frame"].append(step['frames'])
-            print("frames: %d" % (step['frames']))
+            print("experiment play - frames: %d" % (step['frames']))
 
         if self.log_scores:
             logger.info("Save NPY file: eval_%d_%s.npy" % (n, uuid))

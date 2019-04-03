@@ -4,6 +4,7 @@ import torch
 import os
 from config import consts, args, DirsAndLocksSingleton
 #from preprocess import lock_file, release_file
+import time
 
 class Memory(torch.utils.data.Dataset):
 
@@ -65,12 +66,14 @@ class ReplayBatchSampler(object):
             np.save(fread, [])
             fread.close()
             # if flag:
-            traj_sorted = list(range(16))
+            #traj_sorted = list(range(16))
             #
             if not len(traj_sorted):
+                print("traj_sorted empty")
+                time.sleep(5)
             #     if flag:
             #         break
-                 continue
+                continue
 
             replay = np.concatenate([np.load(os.path.join(self.trajectory_dir, "%d.npy" % traj)) for traj in traj_sorted], axis=0)
 
@@ -93,7 +96,14 @@ class ReplayBatchSampler(object):
 
             for i in range(minibatches):
                 samples = shuffle_indexes[i]
-                yield list(zip(replay_buffer[samples], replay_buffer[samples + self.n_steps]))
+                try:
+                    yield list(zip(replay_buffer[samples], replay_buffer[samples + self.n_steps]))
+                except Exception as e:
+                    import sys
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                    print(exc_type, fname, exc_tb.tb_lineno)
+                    print(e)
 
     def __len__(self):
         return np.inf

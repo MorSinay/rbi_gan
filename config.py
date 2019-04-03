@@ -46,7 +46,7 @@ parser.add_argument('--model-beta1', type=float, default=0.9, metavar='M',
 parser.add_argument('--model-beta2', type=float, default=0.999, metavar='M',
                     help='model Adam beta2 (default: 0.999)')
 
-parser.add_argument('--play-episodes-interval', type=int, default=16, metavar='N',
+parser.add_argument('--play-episodes-interval', type=int, default=24, metavar='N',
                     help='Number of episodes between net updates')
 
 #TODO Mor: return to 128
@@ -54,7 +54,7 @@ parser.add_argument('--batch', type=int, default=5, help='Mini-Batch Size')
 
 
 # strings
-parser.add_argument('--game', type=str, default='active', help='Active | Generate')
+parser.add_argument('--game', type=str, default='active', help='active | generate')
 parser.add_argument('--identifier', type=str, default='debug', help='The name of the model to use')
 parser.add_argument('--algorithm', type=str, default='action', help='[action|policy]')
 #parser.add_argument('--base-dir', type=str, default=base_dir, help='Base directory for Logs and results')
@@ -63,8 +63,7 @@ parser.add_argument('--algorithm', type=str, default='action', help='[action|pol
 boolean_feature("load-last-model", False, 'Load the last saved model')
 boolean_feature("load-best-model", False, 'Load the best saved model')
 boolean_feature("learn", False, 'Learn from the observations')
-#TODO: Mor - play
-boolean_feature("play", True, 'Test the learned model via playing')
+boolean_feature("play", False, 'Test the learned model via playing')
 boolean_feature("postprocess", False, 'Postprocess evaluation results')
 boolean_feature("multiplay", False, 'Send samples to memory from multiple parallel players')
 boolean_feature("evaluate", False, 'evaluate player')
@@ -83,21 +82,16 @@ parser.add_argument('--resume', type=int, default=-1, help='Resume experiment nu
 parser.add_argument('--epsilon', type=float, default=0.00164, metavar='ε', help='exploration parameter before behavioral period')
 #
 # #dataloader
-#TODO Mor: change workers to 48
-parser.add_argument('--cpu-workers', type=int, default=1, help='How many CPUs will be used for the data loading')
+parser.add_argument('--cpu-workers', type=int, default=48, help='How many CPUs will be used for the data loading')
 parser.add_argument('--cuda-default', type=int, default=0, help='Default GPU')
 #
 # #train parameters
-#TODO Mor: change update-target-interval to 2500
-parser.add_argument('--update-target-interval', type=int, default=1, metavar='STEPS', help='Number of traning iterations between q-target updates')
-#TODO Mor: change n-tot to 31600
-parser.add_argument('--n-tot', type=int, default=10, metavar='STEPS', help='Total number of training steps')
-#TODO Mor: change checkpoint-interval to 5000
-parser.add_argument('--checkpoint-interval', type=int, default=2, metavar='STEPS', help='Number of training steps between evaluations')
+parser.add_argument('--update-target-interval', type=int, default=2500, metavar='STEPS', help='Number of traning iterations between q-target updates')
+parser.add_argument('--n-tot', type=int, default=31600, metavar='STEPS', help='Total number of training steps')
+parser.add_argument('--checkpoint-interval', type=int, default=5000, metavar='STEPS', help='Number of training steps between evaluations')
 # parser.add_argument('--random-initialization', type=int, default=2500, metavar='STEPS', help='Number of training steps in random policy')
 parser.add_argument('--player-replay-size', type=int, default=2500, help='Player\'s replay memory size')
-#TODO Mor: change update-memory-interval to 100
-parser.add_argument('--update-memory-interval', type=int, default=1, metavar='STEPS', help='Number of steps between memory updates')
+parser.add_argument('--update-memory-interval', type=int, default=100, metavar='STEPS', help='Number of steps between memory updates')
 parser.add_argument('--load-memory-interval', type=int, default=250, metavar='STEPS', help='Number of steps between memory loads')
 parser.add_argument('--replay-updates-interval', type=int, default=5000, metavar='STEPS', help='Number of training iterations between q-target updates')
 parser.add_argument('--replay-memory-size', type=int, default=2000000, help='Total replay exploit memory size')
@@ -138,14 +132,12 @@ class Consts(object):
     indir = os.path.join('/dev/shm/', username, 'gan_rl')
     logdir = os.path.join(base_dir, 'logs')
     modeldir = os.path.join(indir, 'model')
-    rawdata = os.path.join(indir, 'rawdata')
+    rawdata = os.path.join('/dev/shm/', username, 'fmnist')
 
     if not os.path.exists(logdir):
         os.makedirs(logdir)
     if not os.path.exists(modeldir):
         os.makedirs(modeldir)
-    if not os.path.exists(rawdata):
-        os.makedirs(rawdata)
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
@@ -207,8 +199,6 @@ class DirsAndLocksSingleton(metaclass=Singleton):
         self.replay_dir = os.path.join(self.indir, self.exp_name)
         self.scores_dir = os.path.join(self.root, 'scores')
 
-#        if not os.path.exists(self.screen_dir):
- #           os.makedirs(self.screen_dir)
         if not os.path.exists(self.trajectory_dir):
             os.makedirs(self.trajectory_dir)
         if not os.path.exists(self.list_old_path):
@@ -223,8 +213,6 @@ class DirsAndLocksSingleton(metaclass=Singleton):
             os.makedirs(self.code_dir)
         if not os.path.exists(self.analysis_dir):
             os.makedirs(self.analysis_dir)
-        #if not os.path.exists(self.replay_dir):
-         #   os.makedirs(self.replay_dir)
         if not os.path.exists(self.scores_dir):
             os.makedirs(self.scores_dir)
 

@@ -2,6 +2,7 @@ from torchvision import datasets, transforms
 import torch
 import random
 import numpy as np
+import os
 
 
 class DummyGen():
@@ -10,7 +11,9 @@ class DummyGen():
                                         # transforms.Normalize(mean=(0.5,0.5,0.5), std=(0.5,0.5,0.5))
                                         ])
 
-        mnist_data = datasets.FashionMNIST(root="data/fashion-mnist",
+        rawdata = os.path.join('/dev/shm/', 'elkayam', 'fmnist')
+
+        mnist_data = datasets.FashionMNIST(root=rawdata,
                                            train=True,
                                            transform=transform,
                                            download=True)
