@@ -4,6 +4,7 @@ import numpy as np
 import socket
 import os
 import pwd
+import fcntl
 
 parser = argparse.ArgumentParser(description='gan_rl')
 username = pwd.getpwuid(os.geteuid()).pw_name
@@ -102,9 +103,9 @@ parser.add_argument('--delta', type=float, default=0.1, metavar='delta', help='T
 
 #
 # #actors parameters
-# parser.add_argument('--n-players', type=int, default=16, help='Number of parallel players for current actor')
-# parser.add_argument('--actor-index', type=int, default=0, help='Index of current actor')
-# parser.add_argument('--n-actors', type=int, default=1, help='Total number of parallel actors')
+parser.add_argument('--n-players', type=int, default=16, help='Number of parallel players for current actor')
+parser.add_argument('--actor-index', type=int, default=0, help='Index of current actor')
+parser.add_argument('--n-actors', type=int, default=1, help='Total number of parallel actors')
 
 
 # distributional learner
@@ -217,6 +218,22 @@ class DirsAndLocksSingleton(metaclass=Singleton):
             os.makedirs(self.scores_dir)
 
 
+def lock_file(file):
+
+    fo = open(file, "r+b")
+    while True:
+        try:
+            fcntl.lockf(fo, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            break
+        except IOError:
+            pass
+
+    return fo
+
+
+def release_file(fo):
+    fcntl.lockf(fo, fcntl.LOCK_UN)
+    fo.close()
 
 # class DirsAndLocksSingleton(object):
 #
@@ -291,3 +308,5 @@ class DirsAndLocksSingleton(metaclass=Singleton):
 #             os.makedirs(self.replay_dir)
 #         if not os.path.exists(self.scores_dir):
 #             os.makedirs(self.scores_dir)
+
+

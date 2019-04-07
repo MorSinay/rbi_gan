@@ -8,7 +8,7 @@ from torch.nn import functional as F
 import torch.nn as nn
 import sys
 
-from config import consts, args
+from config import consts, args, lock_file, release_file
 import psutil
 #import socket
 
@@ -52,6 +52,9 @@ class GANAgent(Agent):
         self.pi_rand = np.ones(self.action_space) / self.action_space
         self.q_loss = nn.SmoothL1Loss(reduction='none')
         self.kl_loss = nn.KLDivLoss()
+
+        self.a_zeros = torch.zeros(1, 1).long().to(self.device)
+        self.a_zeros_batch = self.a_zeros.repeat(self.batch, 1)
 
         if player:
             # play variables
@@ -97,7 +100,8 @@ class GANAgent(Agent):
     def load_checkpoint(self, path):
 
         if not os.path.exists(path):
-            assert(False), "load_checkpoint"
+            return {'n':0}
+            #assert(False), "load_checkpoint"
 
         state = torch.load(path, map_location="cuda:%d" % self.cuda_id)
 
@@ -116,17 +120,107 @@ class GANAgent(Agent):
 
         return state['aux']
 
+    def learn(self, n_interval, n_tot):
+
+        self.save_checkpoint(self.snapshot_path, {'n': 0})
+
+        self.beta_net.train()
+        self.value_net.train()
+        self.target_net.eval()
+
+        results = {'n': [], 'loss_q': [], 'loss_beta': [], 'a_player': [], 'loss_std': [],
+                   'r': [], 's': [], 't': [], 'pi': [], 's_tag': [], 'pi_tag': []}
+
+        for n, sample in tqdm(enumerate(self.train_loader)):
+
+            s = sample['s'].to(self.device, non_blocking=True)
+            a = sample['a'].to(self.device, non_blocking=True)
+            r = sample['r'].to(self.device, non_blocking=True)
+            t = sample['t'].to(self.device, non_blocking=True)
+            pi = sample['pi'].to(self.device, non_blocking=True)
+            s_tag = sample['s_tag'].to(self.device, non_blocking=True)
+            pi_tag = sample['pi_tag'].to(self.device, non_blocking=True)
+
+
+            # Behavioral nets
+            beta = self.beta_net(s)
+            beta_log = F.log_softmax(beta, dim=1)
+            loss_beta = (-beta_log * pi).sum(dim=1).mean()
+
+            # dqn
+            q_tag = self.target_net(s_tag).detach()
+            #TODO Mor: check
+            q = self.value_net(s)
+
+            ind = range(q.shape[0])
+            q_a = q[ind, a]
+            # index = torch.unsqueeze(a, 1)
+            # one_hot = torch.LongTensor(q.shape).zero_().to(self.device)
+            # one_hot = one_hot.scatter(1, index, 1)
+
+            target_value = r + args.gamma * (pi_tag*q_tag).sum(dim=1)
+            loss_q = (self.q_loss(q_a, target_value)).mean()
+
+            self.optimizer_beta.zero_grad()
+            loss_beta.backward()
+            self.optimizer_beta.step()
+
+            self.optimizer_value.zero_grad()
+            loss_q.backward()
+            self.optimizer_value.step()
+
+            # collect actions statistics
+            if not n % 50:
+                # add results
+                results['a_player'].append(a.data.cpu().numpy())
+                results['r'].append(r.data.cpu().numpy())
+                results['s'].append(s.data.cpu().numpy())
+                results['t'].append(t.data.cpu().numpy())
+                results['pi'].append(pi.data.cpu().numpy())
+                results['s_tag'].append(s_tag.data.cpu().numpy())
+                results['pi_tag'].append(pi_tag.data.cpu().numpy())
+
+                # add results
+                results['loss_beta'].append(loss_beta.data.cpu().numpy())
+                results['loss_q'].append(loss_q.data.cpu().numpy())
+                results['loss_std'].append(0)
+                results['n'].append(n)
+
+                if not n % self.update_memory_interval:
+                    # save agent state
+                    self.save_checkpoint(self.snapshot_path, {'n': n})
+
+                if not n % self.update_target_interval:
+                    # save agent state
+                    self.target_net.load_state_dict(self.value_net.state_dict())
+
+                if not n % n_interval:
+                    results['a_player'] = np.concatenate(results['a_player'])
+                    results['r'] = np.concatenate(results['r'])
+                    results['s'] = np.concatenate(results['s'])
+                    results['t'] = np.concatenate(results['t'])
+                    results['pi'] = np.concatenate(results['pi'])
+                    results['s_tag'] = np.concatenate(results['s_tag'])
+                    results['pi_tag'] = np.concatenate(results['pi_tag'])
+
+                    yield results
+                    self.beta_net.train()
+                    self.value_net.train()
+                    results = {key: [] for key in results}
+
+                    if n >= n_tot:
+                        break
+
     def play(self, n_tot):
         trajectory_dir = self.trajectory_dir
-        readlock = self.readlock
         # set initial episodes number
         # lock read
-        fwrite = open(self.episodelock, "r+b")
+        fwrite = lock_file(self.episodelock)
         current_num = np.load(fwrite).item()
         episode_num = current_num
         fwrite.seek(0)
         np.save(fwrite, current_num + 1)
-        fwrite.close()
+        release_file(fwrite)
 
         for i in range(n_tot):
 
@@ -136,7 +230,7 @@ class GANAgent(Agent):
             rewards = [[]]
             states = [[]]
             ts = [[]]
-            policys = [[]]
+            policies = [[]]
 
             self.beta_net.eval()
             self.value_net.eval()
@@ -192,11 +286,11 @@ class GANAgent(Agent):
 
                 states[-1].append(s)
                 ts[-1].append(self.env.t)
-                policys[-1].append(pi_mix)
+                policies[-1].append(pi_mix)
                 rewards[-1].append(self.env.reward)
 
                 episode_format = np.array((self.frame, states[-1][-1].cpu().numpy(), a, rewards[-1][-1], ts[-1][-1],
-                              policys[-1][-1], -1, episode_num), dtype=consts.rec_type)
+                              policies[-1][-1], -1, episode_num), dtype=consts.rec_type)
 
                 episode.append(episode_format)
 
@@ -209,11 +303,11 @@ class GANAgent(Agent):
                 trajectory.append(episode_df)
 
                 # read
-                fwrite = open(self.episodelock, "r+b")
+                fwrite = lock_file(self.episodelock)
                 episode_num = np.load(fwrite).item()
                 fwrite.seek(0)
                 np.save(fwrite, episode_num + 1)
-                fwrite.close()
+                release_file(fwrite)
 
                 if sum([len(j) for j in trajectory]) >= self.player_replay_size:
 
@@ -222,11 +316,11 @@ class GANAgent(Agent):
 
                         print("write trajectory")
                         # read
-                        fwrite = open(self.writelock, "r+b")
+                        fwrite = lock_file(self.writelock)
                         traj_num = np.load(fwrite).item()
                         fwrite.seek(0)
                         np.save(fwrite, traj_num + 1)
-                        fwrite.close()
+                        release_file(fwrite)
 
                         traj_to_save = np.concatenate(trajectory)
                         traj_to_save['traj'] = traj_num
@@ -234,121 +328,156 @@ class GANAgent(Agent):
                         traj_file = os.path.join(trajectory_dir, "%d.npy" % traj_num)
                         np.save(traj_file, traj_to_save)
 
-                        fread = open(readlock, "r+b")
+                        fread = lock_file(self.readlock)
                         traj_list = np.load(fread)
                         fread.seek(0)
                         np.save(fread, np.append(traj_list, traj_num))
-                        fread.close()
+                        print("traj list - ", np.append(traj_list, traj_num))
+                        release_file(fread)
 
-            try:
-                yield {'frames': self.frame}
-            except Exception as e:
-                exc_type, exc_obj, exc_tb = sys.exc_info()
-                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                print(exc_type, fname, exc_tb.tb_lineno)
-                print(e)
-
-    def learn(self, n_interval, n_tot):
-
-        print("start learn")
-        self.save_checkpoint(self.snapshot_path, {'n': 0})
-
-        self.beta_net.train()
-        self.value_net.train()
-        self.target_net.eval()
-
-        results = {'n': [], 'loss_q': [], 'loss_beta': [], 'a_player': [], 'loss_std': [],
-                   'r': [], 's': [], 't': [], 'pi': [], 's_tag': [], 'pi_tag': []}
-
-        try:
-            for n, sample in tqdm(enumerate(self.train_loader)):
-                print("learn learn")
-
-                s = sample['s'].to(self.device, non_blocking=True)
-                a = sample['a'].to(self.device, non_blocking=True)
-                r = sample['r'].to(self.device, non_blocking=True)
-                t = sample['t'].to(self.device, non_blocking=True)
-                pi = sample['pi'].to(self.device, non_blocking=True)
-                s_tag = sample['s_tag'].to(self.device, non_blocking=True)
-                pi_tag = sample['pi_tag'].to(self.device, non_blocking=True)
-
-                # Behavioral nets
-                beta = self.beta_net(s)
-                beta_log = F.log_softmax(beta, dim=1)
-                loss_beta = (-beta_log * pi).sum(dim=1).mean()
-
-                # dqn
-                q_tag = self.target_net(s_tag).detach()
-                #TODO Mor: check
-                q = self.value_net(s)
-
-                ind = range(q.shape[0])
-                q_a = q[ind, a]
-                # index = torch.unsqueeze(a, 1)
-                # one_hot = torch.LongTensor(q.shape).zero_().to(self.device)
-                # one_hot = one_hot.scatter(1, index, 1)
-
-                target_value = r + args.gamma * (pi_tag*q_tag).sum(dim=1)
-                loss_q = (self.q_loss(q_a, target_value)).mean()
-
-                self.optimizer_beta.zero_grad()
-                loss_beta.backward()
-                self.optimizer_beta.step()
-
-                self.optimizer_value.zero_grad()
-                loss_q.backward()
-                self.optimizer_value.step()
-
-                # collect actions statistics
-                if not n % 50:
-                    # add results
-                    results['a_player'].append(a.data.cpu().numpy())
-                    results['r'].append(r.data.cpu().numpy())
-                    results['s'].append(s.data.cpu().numpy())
-                    results['t'].append(t.data.cpu().numpy())
-                    results['pi'].append(pi.data.cpu().numpy())
-                    results['s_tag'].append(s_tag.data.cpu().numpy())
-                    results['pi_tag'].append(pi_tag.data.cpu().numpy())
-
-                    # add results
-                    results['loss_beta'].append(loss_beta.data.cpu().numpy())
-                    results['loss_q'].append(loss_q.data.cpu().numpy())
-                    results['loss_std'].append(0)
-                    results['n'].append(n)
-
-                    if not n % self.update_memory_interval:
-                        # save agent state
-                        self.save_checkpoint(self.snapshot_path, {'n': n})
-
-                    if not n % self.update_target_interval:
-                        # save agent state
-                        self.target_net.load_state_dict(self.value_net.state_dict())
-
-                    if not n % n_interval:
-                        results['a_player'] = np.concatenate(results['a_player'])
-                        results['r'] = np.concatenate(results['r'])
-                        results['s'] = np.concatenate(results['s'])
-                        results['t'] = np.concatenate(results['t'])
-                        results['pi'] = np.concatenate(results['pi'])
-                        results['s_tag'] = np.concatenate(results['s_tag'])
-                        results['pi_tag'] = np.concatenate(results['pi_tag'])
-
-                        yield results
-                        self.beta_net.train()
-                        self.value_net.train()
-                        results = {key: [] for key in results}
-
-                        if n >= n_tot:
-                            break
-
-        except Exception as e:
-            exc_type, exc_obj, exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(exc_type, fname, exc_tb.tb_lineno)
-            print(e)
+            yield {'frames': self.frame}
 
     def multiplay(self):
-        return
+
+        n_players = self.n_players
+
+        mp_env = [Env() for _ in range(n_players)]
+        self.frame = 0
+
+        range_players = np.arange(n_players)
+        rewards = [[[]] for _ in range(n_players)]
+        states = [[[]] for _ in range(n_players)]
+        episode = [[] for _ in range(n_players)]
+        ts = [[[]] for _ in range(n_players)]
+        policies = [[[]] for _ in range(n_players)]
+        trajectory = [[] for _ in range(n_players)]
+
+        trajectory_dir = [self.trajectory_dir] * n_players
+        readlock = [self.readlock] * n_players
+
+        # set initial episodes number
+        # lock read
+        fwrite = lock_file(self.episodelock)
+        current_num = np.load(fwrite).item()
+        episode_num = current_num + np.arange(n_players)
+        fwrite.seek(0)
+        np.save(fwrite, current_num + n_players)
+        release_file(fwrite)
+
+        for i in range(n_players):
+            mp_env[i].reset()
+
+        while True:
+
+            if not (self.frame % self.load_memory_interval):
+                try:
+                    self.load_checkpoint(self.snapshot_path)
+                except:
+                    pass
+
+                self.beta_net.eval()
+                self.value_net.eval()
+
+            s = torch.cat([env.state.unsqueeze(0) for env in mp_env]).to(self.device)
+            s_flat = s.view(-1, self.action_space * self.action_space)
+
+            beta = self.beta_net(s_flat)
+            beta = F.softmax(beta.detach(), dim=1)
+            beta = beta.data.cpu().numpy().reshape(-1,self.action_space)
+
+            q = self.value_net(s_flat)
+            q = q.data.cpu().numpy().reshape(-1,self.action_space)
+
+            pi = beta.copy()
+            q_temp = q.copy()
+
+            pi_greed = np.zeros((n_players, self.action_space))
+            pi_greed[range(n_players), np.argmax(q_temp, axis=1)] = 1
+            pi_mix = (1 - self.mix) * pi + self.mix * pi_greed
+
+            pi_mix = self.cmin * pi_mix
+
+            rank = np.argsort(q_temp, axis=1)
+
+            delta = np.ones(n_players) - self.cmin
+            for i in range(self.action_space):
+                a = rank[:, self.action_space - 1 - i]
+                delta_a = np.minimum(delta, (self.cmax - self.cmin) * beta[range_players, a])
+                delta -= delta_a
+                pi[range_players, a] += delta_a
+
+
+            pi_mix = pi_mix.clip(0, 1)
+            pi_mix = pi_mix / np.repeat(pi_mix.sum(axis=1, keepdims=True), self.action_space, axis=1)
+
+            pi_explore = self.epsilon * self.pi_rand + (1 - self.epsilon) * pi_mix
+
+            pi_explore = pi_explore.astype(np.float32)
+
+            for i in range(n_players):
+
+                a = np.random.choice(self.action_space, 1, p=pi_explore[i])
+
+                env = mp_env[i]
+
+                env.step(a)
+
+                rewards[i][-1].append(env.reward)
+                states[i][-1].append(s[i])
+                ts[i][-1].append(env.t)
+                policies[i][-1].append(pi_mix[i])
+
+                episode_format = np.array((self.frame, states[i][-1][-1].cpu().numpy(), a, rewards[i][-1][-1], ts[i][-1][-1],
+                                           policies[i][-1][-1], -1, episode_num[i]), dtype=consts.rec_type)
+
+                episode[i].append(episode_format)
+
+                self.frame += 1
+
+                if self.env.t:
+                    episode_df = np.stack(episode[i])
+                    trajectory[i].append(episode_df)
+
+                    # read
+                    fwrite = lock_file(readlock[i])
+                    episode_num[i] = np.load(fwrite).item()
+                    fwrite.seek(0)
+                    np.save(fwrite, episode_num[i] + 1)
+                    release_file(fwrite)
+
+                    if sum([len(j) for j in trajectory[i]]) >= self.player_replay_size:
+
+                        # write if enough space is available
+                        if psutil.virtual_memory().available >= mem_threshold:
+
+                            print("write trajectory")
+                            # read
+                            fwrite = lock_file(self.writelock)
+                            traj_num = np.load(fwrite).item()
+                            fwrite.seek(0)
+                            np.save(fwrite, traj_num + 1)
+                            release_file(fwrite)
+
+                            traj_to_save = np.concatenate(trajectory[i])
+                            traj_to_save['traj'] = traj_num
+
+                            traj_file = os.path.join(trajectory_dir[i], "%d.npy" % traj_num)
+                            np.save(traj_file, traj_to_save)
+
+                            fread = lock_file(readlock[i])
+                            traj_list = np.load(fread)
+                            fread.seek(0)
+                            np.save(fread, np.append(traj_list, traj_num))
+                            print("traj list - ", np.append(traj_list, traj_num))
+                            release_file(fread)
+
+                        trajectory[i] = []
+
+            self.frame += 1
+            if not self.frame % self.player_replay_size:
+                yield True
+                if self.n_offset >= self.n_tot:
+                    break
 
     def demonstrate(self, n_tot):
         return

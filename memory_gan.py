@@ -2,7 +2,7 @@ import torch.utils.data
 import numpy as np
 import torch
 import os
-from config import consts, args, DirsAndLocksSingleton
+from config import consts, args, DirsAndLocksSingleton, lock_file, release_file
 #from preprocess import lock_file, release_file
 import time
 
@@ -60,20 +60,23 @@ class ReplayBatchSampler(object):
 
             # load new memory
 
-            fread = open(self.readlock,"r+b")
+            fread = lock_file(self.readlock)
             traj_sorted = np.load(fread)
             fread.seek(0)
             np.save(fread, [])
-            fread.close()
+            release_file(fread)
             # if flag:
             #traj_sorted = list(range(16))
             #
             if not len(traj_sorted):
-                print("traj_sorted empty")
-                time.sleep(5)
+                #print("traj_sorted empty")
+                #time.sleep(5)
             #     if flag:
             #         break
+                #traj_sorted = list(range(15))*150
                 continue
+            else:
+                print("traj sorted = ", traj_sorted)
 
             replay = np.concatenate([np.load(os.path.join(self.trajectory_dir, "%d.npy" % traj)) for traj in traj_sorted], axis=0)
 

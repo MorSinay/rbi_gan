@@ -36,13 +36,13 @@ class Agent(object):
         #self.behavioral_avg_frame = 1
         #self.behavioral_avg_score = -1
         #self.entropy_loss = float((1 - (1 / (1 + (self.action_space - 1) * np.exp(-args.softmax_diff)))) * (self.action_space / (self.action_space - 1)))
-        #self.batch = args.batch
+        self.batch = args.batch
         self.replay_memory_size = args.replay_memory_size
         #self.n_actors = args.n_actors
         #self.actor_index = args.actor_index
-        #self.n_players = args.n_players
+        self.n_players = args.n_players
         #self.player = args.player
-        #self.n_tot = args.n_tot
+        self.n_tot = args.n_tot
         #self.max_length = consts.max_length[args.game]
         #self.max_score = consts.max_score[args.game]
         #self.start_time = consts.start_time

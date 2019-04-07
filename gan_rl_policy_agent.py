@@ -7,7 +7,7 @@ from tqdm import tqdm
 from torch.nn import functional as F
 import torch.nn as nn
 
-from config import consts, args
+from config import consts, args, lock_file, release_file
 import psutil
 import socket
 
@@ -114,12 +114,12 @@ class GANAgent(Agent):
         readlock = consts.readlock
         # set initial episodes number
         # lock read
-        fwrite = open(self.episodelock, "r+b")
+        fwrite = lock_file(self.episodelock)
         current_num = np.load(fwrite).item()
         episode_num = current_num
         fwrite.seek(0)
         np.save(fwrite, current_num + 1)
-        fwrite.close()
+        release_file(fwrite)
 
         for i in range(n_tot):
 
@@ -209,22 +209,22 @@ class GANAgent(Agent):
                 print("gan | t: %d\t" % self.env.t)
 
                 # read
-                fwrite = open(self.episodelock, "r+b")
+                fwrite = lock_file(self.episodelock)
                 episode_num = np.load(fwrite).item()
                 fwrite.seek(0)
                 np.save(fwrite, episode_num + 1)
-                fwrite.close()
+                release_file(fwrite)
 
                 if sum([len(j) for j in trajectory]) >= self.player_replay_size:
 
                     # write if enough space is available
                     if psutil.virtual_memory().available >= mem_threshold:
                         # read
-                        fwrite = open(self.writelock, "r+b")
+                        fwrite = lock_file(self.writelock)
                         traj_num = np.load(fwrite).item()
                         fwrite.seek(0)
                         np.save(fwrite, traj_num + 1)
-                        fwrite.close()
+                        release_file(fwrite)
 
                         traj_to_save = np.concatenate(trajectory)
                         traj_to_save['traj'] = traj_num
@@ -232,11 +232,11 @@ class GANAgent(Agent):
                         traj_file = os.path.join(trajectory_dir, "%d.npy" % traj_num)
                         np.save(traj_file, traj_to_save)
 
-                        fread = open(readlock, "r+b")
+                        fread = lock_file(readlock)
                         traj_list = np.load(fread)
                         fread.seek(0)
                         np.save(fread, np.append(traj_list, traj_num))
-                        fread.close()
+                        release_file(fread)
 
             print("debug only ntot: {} from {}".format(i, n_tot))
 

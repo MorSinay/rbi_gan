@@ -205,16 +205,15 @@ class Experiment(object):
         return None
 
     def multiplay(self):
-        return
-        # agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint)
-        # multiplayer = agent.multiplay()
-        #
-        # for _ in multiplayer:
-        #
-        #     player = self.get_player(agent)
-        #     if player:
-        #         agent.set_player(player['player'], behavioral_avg_score=player['high'],
-        #                          behavioral_avg_frame=player['frames'])
+        agent = self.choose_agent()(self.exp_name, player=True, checkpoint=self.checkpoint)
+        multiplayer = agent.multiplay()
+
+        for _ in multiplayer:
+            print("player X finished")
+            #player = self.get_player(agent)
+            #if player:
+                # agent.set_player(player['player'], behavioral_avg_score=player['high'],
+                #                  behavioral_avg_frame=player['frames'])
 
     def play(self, params=None):
 
