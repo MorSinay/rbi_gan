@@ -364,8 +364,8 @@ class GANAgent(Agent):
         np.save(fwrite, current_num + n_players)
         release_file(fwrite)
 
-        for i in range(n_players):
-            mp_env[i].reset()
+#        for i in range(n_players):
+ #           mp_env[i].reset()
 
         while True:
 
@@ -434,12 +434,12 @@ class GANAgent(Agent):
 
                 self.frame += 1
 
-                if self.env.t:
+                if env.t:
                     episode_df = np.stack(episode[i])
                     trajectory[i].append(episode_df)
 
                     # read
-                    fwrite = lock_file(readlock[i])
+                    fwrite = lock_file(self.episodelock)
                     episode_num[i] = np.load(fwrite).item()
                     fwrite.seek(0)
                     np.save(fwrite, episode_num[i] + 1)
