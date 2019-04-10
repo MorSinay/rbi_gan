@@ -134,10 +134,18 @@ class Experiment(object):
         while hold:
             print("wait for first samples")
 
-            if len(os.listdir(self.dirs_locks.trajectory_dir)) >= (int(500. / args.player_replay_size * batch_explore) + 1):
+
+            #TODO Mor
+            if len(os.listdir(self.dirs_locks.trajectory_dir)) >= 10:
                 hold = 0
 
             time.sleep(5)
+
+
+          #  if len(os.listdir(self.dirs_locks.trajectory_dir)) >= (int(500. / args.player_replay_size * batch_explore) + 1):
+           #     hold = 0
+
+            #time.sleep(5)
 
         logger.info("Begin Behavioral Distributional learning experiment")
         logger.info("Game: %s " % args.game)
@@ -209,7 +217,8 @@ class Experiment(object):
         multiplayer = agent.multiplay()
 
         for _ in multiplayer:
-            print("player X finished")
+            pass
+            #print("player X finished")
             #player = self.get_player(agent)
             #if player:
                 # agent.set_player(player['player'], behavioral_avg_score=player['high'],

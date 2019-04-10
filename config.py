@@ -103,7 +103,7 @@ parser.add_argument('--delta', type=float, default=0.1, metavar='delta', help='T
 
 #
 # #actors parameters
-parser.add_argument('--n-players', type=int, default=16, help='Number of parallel players for current actor')
+parser.add_argument('--n-players', type=int, default=30, help='Number of parallel players for current actor')
 parser.add_argument('--actor-index', type=int, default=0, help='Index of current actor')
 parser.add_argument('--n-actors', type=int, default=1, help='Total number of parallel actors')
 

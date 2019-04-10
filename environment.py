@@ -27,12 +27,12 @@ class Env(object):
         self.iterations = args.env_iterations
         self.t = 0
         self.k = 0
-        self.max_k = 10 #5600
+        self.max_k = 500 #5600
         self.reset()
 
     def reset(self):
         self.model.load_model()
-        self.state = torch.Tensor(self.model.test())
+        self.state = torch.Tensor(self.model.test_only_one_batch())
         self.acc = torch.trace(self.state).item()
         self.t = np.int64(0)
         self.k = 0
@@ -55,7 +55,7 @@ class Env(object):
 
             # TODO: need to check about the option to save all the test on a GPU
             # TODO: maybe save a GPU to tun only the test
-            new_state = torch.tensor(self.model.test())
+            new_state = torch.tensor(self.model.test_only_one_batch())
 
             next_acc = torch.trace(new_state).item()
             self.reward = np.float32((next_acc - self.acc)/(1-self.acc))
@@ -67,10 +67,9 @@ class Env(object):
             self.acc = next_acc
             self.k += 1
 
-            if self.k >= self.max_k:
+            if self.k >= self.max_k or self.acc >= 0.85:
                 # TODO: is it right?
                 self.t = np.int64(1)
-                self.k = 0
 
     def step(self, a):
 
@@ -83,7 +82,7 @@ class Env(object):
 
             # TODO: need to check about the option to save all the test on a GPU
             # TODO: maybe save a GPU to tun only the test
-            new_state = torch.tensor(self.model.test(), dtype=torch.float)
+            new_state = torch.tensor(self.model.test_only_one_batch(), dtype=torch.float)
 
             next_acc = torch.trace(new_state).item()
             self.reward = np.float32((next_acc - self.acc)/(1-self.acc))
@@ -95,10 +94,9 @@ class Env(object):
             self.acc = next_acc
             self.k += 1
 
-            if self.k >= self.max_k:
+            if self.k >= self.max_k or self.acc >= 0.85:
                 # TODO: is it right?
                 self.t = np.int64(1)
-                self.k = 0
 
 class Model():
     def __init__(self):
@@ -159,6 +157,28 @@ class Model():
 
         cm = cm / len(self.test_loader.dataset)
         return cm
+
+
+    def test_only_one_batch(self):
+        self.model.eval()
+        test_loss = 0
+        with torch.no_grad():
+            data, target = next(iter(self.test_loader))
+            data, target = data.to(self.device), target.to(self.device)
+            output = self.model(data)
+            test_loss += F.nll_loss(output, target, size_average=False).item()  # sum up batch loss
+            pred = output.max(1, keepdim=True)[1]  # get the index of the max log-probability
+            cm = confusion_matrix(target.view_as(pred), pred, labels=range(self.outputs))
+
+        #test_loss /= len(self.test_loader.dataset)
+        #print('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+        #    test_loss, correct, len(self.test_loader.dataset),
+        #    100. * correct / len(self.test_loader.dataset)))
+
+        #TODO Mor - looks
+        cm = cm / len(self.test_loader.dataset)
+        return cm
+
 
     def create_model(self):
         self.model = Net(self.outputs).to(self.device)

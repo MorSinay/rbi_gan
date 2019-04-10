@@ -21,7 +21,7 @@ from environment import Env
 import os
 #import time
 #import shutil
-
+import itertools
 mem_threshold = consts.mem_threshold
 
 
@@ -309,31 +309,29 @@ class GANAgent(Agent):
                 np.save(fwrite, episode_num + 1)
                 release_file(fwrite)
 
-                if sum([len(j) for j in trajectory]) >= self.player_replay_size:
+                # write if enough space is available
+                if psutil.virtual_memory().available >= mem_threshold:
 
-                    # write if enough space is available
-                    if psutil.virtual_memory().available >= mem_threshold:
+                    # read
+                    fwrite = lock_file(self.writelock)
+                    traj_num = np.load(fwrite).item()
+                    fwrite.seek(0)
+                    np.save(fwrite, traj_num + 1)
+                    release_file(fwrite)
 
-                        print("write trajectory")
-                        # read
-                        fwrite = lock_file(self.writelock)
-                        traj_num = np.load(fwrite).item()
-                        fwrite.seek(0)
-                        np.save(fwrite, traj_num + 1)
-                        release_file(fwrite)
+                    traj_to_save = np.concatenate(trajectory)
+                    traj_to_save['traj'] = traj_num
 
-                        traj_to_save = np.concatenate(trajectory)
-                        traj_to_save['traj'] = traj_num
+                    traj_file = os.path.join(trajectory_dir, "%d.npy" % traj_num)
+                    np.save(traj_file, traj_to_save)
 
-                        traj_file = os.path.join(trajectory_dir, "%d.npy" % traj_num)
-                        np.save(traj_file, traj_to_save)
+                    fread = lock_file(self.readlock)
+                    traj_list = np.load(fread)
+                    fread.seek(0)
+                    np.save(fread, np.append(traj_list, traj_num))
+                    release_file(fread)
 
-                        fread = lock_file(self.readlock)
-                        traj_list = np.load(fread)
-                        fread.seek(0)
-                        np.save(fread, np.append(traj_list, traj_num))
-                        print("traj list - ", np.append(traj_list, traj_num))
-                        release_file(fread)
+                self.env.reset()
 
             yield {'frames': self.frame}
 
@@ -367,7 +365,7 @@ class GANAgent(Agent):
 #        for i in range(n_players):
  #           mp_env[i].reset()
 
-        while True:
+        for _ in tqdm(itertools.count()):
 
             if not (self.frame % self.load_memory_interval):
                 try:
@@ -434,7 +432,14 @@ class GANAgent(Agent):
 
                 self.frame += 1
 
-                if env.t:
+
+                #TODO Mor: need
+
+
+                if env.t :
+
+                    print("player {} - acc {}, n-offset {}, frame {}, episode {} k {}".format(i, env.acc, self.n_offset, self.frame, episode_num[i], env.k))
+
                     episode_df = np.stack(episode[i])
                     trajectory[i].append(episode_df)
 
@@ -445,33 +450,32 @@ class GANAgent(Agent):
                     np.save(fwrite, episode_num[i] + 1)
                     release_file(fwrite)
 
-                    if sum([len(j) for j in trajectory[i]]) >= self.player_replay_size:
 
-                        # write if enough space is available
-                        if psutil.virtual_memory().available >= mem_threshold:
+                    # write if enough space is available
+                    if psutil.virtual_memory().available >= mem_threshold:
 
-                            print("write trajectory")
-                            # read
-                            fwrite = lock_file(self.writelock)
-                            traj_num = np.load(fwrite).item()
-                            fwrite.seek(0)
-                            np.save(fwrite, traj_num + 1)
-                            release_file(fwrite)
+                        # read
+                        fwrite = lock_file(self.writelock)
+                        traj_num = np.load(fwrite).item()
+                        fwrite.seek(0)
+                        np.save(fwrite, traj_num + 1)
+                        release_file(fwrite)
 
-                            traj_to_save = np.concatenate(trajectory[i])
-                            traj_to_save['traj'] = traj_num
+                        traj_to_save = np.concatenate(trajectory[i])
+                        traj_to_save['traj'] = traj_num
 
-                            traj_file = os.path.join(trajectory_dir[i], "%d.npy" % traj_num)
-                            np.save(traj_file, traj_to_save)
+                        traj_file = os.path.join(trajectory_dir[i], "%d.npy" % traj_num)
+                        np.save(traj_file, traj_to_save)
 
-                            fread = lock_file(readlock[i])
-                            traj_list = np.load(fread)
-                            fread.seek(0)
-                            np.save(fread, np.append(traj_list, traj_num))
-                            print("traj list - ", np.append(traj_list, traj_num))
-                            release_file(fread)
+                        fread = lock_file(readlock[i])
+                        traj_list = np.load(fread)
+                        fread.seek(0)
+                        np.save(fread, np.append(traj_list, traj_num))
+                        release_file(fread)
 
-                        trajectory[i] = []
+                    trajectory[i] = []
+
+                    env.reset()
 
             self.frame += 1
             if not self.frame % self.player_replay_size:

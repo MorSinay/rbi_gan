@@ -17,7 +17,7 @@ else
     echo "New Experiment"
 fi
 
-args="--algorithm=gan --n-steps=1 --batch=25 --cpu-workers=1 --update-target-interval=5 --n-tot=500 \
---checkpoint-interval=2 --update-memory-interval=1"
+args="--algorithm=gan --n-steps=1 --batch=128 --cpu-workers=48 --update-target-interval=500 --n-tot=100000000 \
+--checkpoint-interval=10 --update-memory-interval=10"
 
 CUDA_VISIBLE_DEVICES=0, python $loc/main.py --learn --identifier=$identifier --game=$game $resume $args $aux

@@ -75,8 +75,6 @@ class ReplayBatchSampler(object):
             #         break
                 #traj_sorted = list(range(15))*150
                 continue
-            else:
-                print("traj sorted = ", traj_sorted)
 
             replay = np.concatenate([np.load(os.path.join(self.trajectory_dir, "%d.npy" % traj)) for traj in traj_sorted], axis=0)
 
