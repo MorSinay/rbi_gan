@@ -4,7 +4,7 @@ import sys
 import numpy as np
 #import pandas as pd
 
-#from tensorboardX import SummaryWriter
+from tensorboardX import SummaryWriter
 
 from tqdm import tqdm
 import time
@@ -182,6 +182,7 @@ class Experiment(object):
             self.print_actions_statistics(train_results['a_player'], avg_train_loss_beta, avg_train_loss_v_beta)
             agent.save_checkpoint(self.checkpoint, {'n': n + n_offset})
 
+        print("End Learn")
         return agent
 
     def get_player(self, agent):
@@ -391,39 +392,6 @@ class Experiment(object):
         #         break
         #
         # print("End of evaluation")
-
-    def postprocess(self):
-        return
-        # run_dir = os.path.join(self.root, "scores")
-        # save_dir = os.path.join(self.root, "postprocess")
-        #
-        # if not os.path.isdir(save_dir):
-        #     os.mkdir(save_dir)
-        # elif os.path.isfile(os.path.join(save_dir, "df_reroute")) and os.path.isfile(
-        #         os.path.join(save_dir, "df_behavioral")):
-        #     return
-        #
-        # results_reroute = {'score': [], 'frame': [], 'n': [], 'time': []}
-        # results_behavioral = {'score': [], 'frame': [], 'n': [], 'time': []}
-        #
-        # for d in os.listdir(run_dir):
-        #     print(d)
-        #     for f in os.listdir(os.path.join(run_dir, d)):
-        #
-        #         if "behavioral" in f:
-        #             for key in results_behavioral:
-        #                 item = np.load(os.path.join(run_dir, d, f)).item()
-        #                 results_behavioral[key] += item[key]
-        #         else:
-        #             for key in results_reroute:
-        #                 item = np.load(os.path.join(run_dir, d, f)).item()
-        #                 results_reroute[key] += item[key]
-        #
-        # df_reroute = pd.DataFrame(results_reroute)
-        # df_behavioral = pd.DataFrame(results_behavioral)
-        #
-        # df_reroute.to_pickle(os.path.join(save_dir, "df_reroute"))
-        # df_behavioral.to_pickle(os.path.join(save_dir, "df_behavioral"))
 
     def print_actions_statistics(self, a_player, loss_q, loss_beta):
 

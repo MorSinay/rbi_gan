@@ -130,8 +130,6 @@ class Agent(object):
 
     def clean(self):
 
-        trajectory_dir = os.path.join(self.explore_dir, "trajectory")
-
         for i in itertools.count():
 
             time.sleep(2)
@@ -141,15 +139,11 @@ class Agent(object):
             except (IOError, ValueError):
                 continue
             traj_min = del_inf[0] - 32
-            episode_list = set()
 
-            for traj in os.listdir(trajectory_dir):
+            for traj in os.listdir(self.trajectory_dir):
                 traj_num = int(traj.split(".")[0])
                 if traj_num < traj_min:
-                    traj_data = np.load(os.path.join(trajectory_dir, traj))
-                    for d in traj_data['ep']:
-                        episode_list.add(d)
-                    os.remove(os.path.join(trajectory_dir, traj))
+                    os.remove(os.path.join(self.trajectory_dir, traj))
 
             if not i % 50:
                 try:
@@ -159,4 +153,6 @@ class Agent(object):
                 except:
                     pass
 
-        shutil.rmtree(self.root_dir)
+        shutil.rmtree(self.explore_dir)
+        shutil.rmtree(self.list_dir)
+        #shutil.rmtree(self.root_dir)

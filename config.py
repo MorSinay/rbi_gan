@@ -38,8 +38,8 @@ parser.add_argument('--env-iterations', type=int, default=1, metavar='N',
                     help='number of env iterations (default: 1)')
 
 # Model Arguments
-parser.add_argument('--test-loader-batch-size', type=int, default=128, metavar='N',
-                    help='test loader batch size (default: 128)')
+parser.add_argument('--test-loader-batch-size', type=int, default=512, metavar='N',
+                    help='test loader batch size (default: 1024)')
 parser.add_argument('--model-lr', type=float, default=0.001, metavar='LR',
                     help='model optimizer learning rate (default: 0.001)')
 parser.add_argument('--model-beta1', type=float, default=0.9, metavar='M',
@@ -50,8 +50,7 @@ parser.add_argument('--model-beta2', type=float, default=0.999, metavar='M',
 parser.add_argument('--play-episodes-interval', type=int, default=24, metavar='N',
                     help='Number of episodes between net updates')
 
-#TODO Mor: return to 128
-parser.add_argument('--batch', type=int, default=5, help='Mini-Batch Size')
+parser.add_argument('--batch', type=int, default=64, help='Mini-Batch Size')
 
 
 # strings
@@ -88,18 +87,19 @@ parser.add_argument('--cuda-default', type=int, default=0, help='Default GPU')
 #
 # #train parameters
 parser.add_argument('--update-target-interval', type=int, default=2500, metavar='STEPS', help='Number of traning iterations between q-target updates')
-parser.add_argument('--n-tot', type=int, default=31600, metavar='STEPS', help='Total number of training steps')
+parser.add_argument('--n-tot', type=int, default=3160000, metavar='STEPS', help='Total number of training steps')
 parser.add_argument('--checkpoint-interval', type=int, default=5000, metavar='STEPS', help='Number of training steps between evaluations')
 # parser.add_argument('--random-initialization', type=int, default=2500, metavar='STEPS', help='Number of training steps in random policy')
 parser.add_argument('--player-replay-size', type=int, default=2500, help='Player\'s replay memory size')
 parser.add_argument('--update-memory-interval', type=int, default=100, metavar='STEPS', help='Number of steps between memory updates')
-parser.add_argument('--load-memory-interval', type=int, default=250, metavar='STEPS', help='Number of steps between memory loads')
+parser.add_argument('--load-memory-interval', type=int, default=50, metavar='STEPS', help='Number of steps between memory loads')
 parser.add_argument('--replay-updates-interval', type=int, default=5000, metavar='STEPS', help='Number of training iterations between q-target updates')
 parser.add_argument('--replay-memory-size', type=int, default=2000000, help='Total replay exploit memory size')
 parser.add_argument('--gamma', type=float, default=0.97, metavar='LR', help='gamma (default: 0.97)')
 parser.add_argument('--cmin', type=float, default=0.1, metavar='c_min', help='Lower reroute threshold')
 parser.add_argument('--cmax', type=float, default=2, metavar='c_max', help='Upper reroute threshold')
 parser.add_argument('--delta', type=float, default=0.1, metavar='delta', help='Total variation constraint')
+parser.add_argument('--save-to-mem', type=int, default=500, metavar='stm', help='Save to memory')
 
 #
 # #actors parameters
@@ -142,22 +142,6 @@ class Consts(object):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
-    #
-    #
-    # explore_dir = os.path.join(indir, "explore")
-    # list_dir = os.path.join(indir, "list")
-    # modeldir = os.path.join(indir, 'model')
-    # rawdata = os.path.join(indir, 'rawdata')
-    #
-    # screen_dir = os.path.join(explore_dir, "screen")
-    # trajectory_dir = os.path.join(explore_dir, "trajectory")
-    # list_old_path = os.path.join(list_dir, "old_explore")
-    # snapshot_path = os.path.join(base_dir, "snapshot")
-    #
-    # readlock = os.path.join(list_dir, "readlock_explore.npy")
-    # writelock = os.path.join(list_dir, "writelock.npy")
-    # episodelock = os.path.join(list_dir, "episodelock.npy")
-
 consts = Consts()
 
 
@@ -181,7 +165,6 @@ class DirsAndLocksSingleton(metaclass=Singleton):
         self.explore_dir = os.path.join(self.indir, "explore")
         self.list_dir = os.path.join(self.indir, "list")
 
-        #self.screen_dir = os.path.join(self.explore_dir, "screen")
         self.trajectory_dir = os.path.join(self.explore_dir, "trajectory")
         self.list_old_path = os.path.join(self.list_dir, "old_explore")
         self.snapshot_path = os.path.join(self.root, "snapshot")
@@ -234,79 +217,3 @@ def lock_file(file):
 def release_file(fo):
     fcntl.lockf(fo, fcntl.LOCK_UN)
     fo.close()
-
-# class DirsAndLocksSingleton(object):
-#
-#     __instance = None
-#
-#     def __new__(cls, exp_name):
-#         if cls.__instance is None:
-#             cls.__instance = super(DirsAndLocksSingleton, cls).__new__(cls, exp_name)
-#             cls.__instance.__initialized = False
-#         return cls.__instance
-#
-#     def __init__(self, exp_name):
-#         if self.__initialized:
-#             return
-#         self.__initialized = True
-#         self.outdir = consts.outdir
-#         self.exp_name = exp_name
-#         self.root = os.path.join(self.outdir, self.exp_name)
-#
-#         self.indir = os.path.join('/dev/shm/', username, 'gan_rl')
-#         self.explore_dir = os.path.join(self.indir, "explore")
-#         self.list_dir = os.path.join(self.indir, "list")
-#         self.modeldir = os.path.join(self.indir, 'model')
-#         self.rawdata = os.path.join(self.indir, 'rawdata')
-#
-#         self.screen_dir = os.path.join(self.explore_dir, "screen")
-#         self.trajectory_dir = os.path.join(self.explore_dir, "trajectory")
-#         self.list_old_path = os.path.join(self.list_dir, "old_explore")
-#         self.snapshot_path = os.path.join(self.root, "snapshot")
-#
-#         self.readlock = os.path.join(self.list_dir, "readlock_explore.npy")
-#         self.writelock = os.path.join(self.list_dir, "writelock.npy")
-#         self.episodelock = os.path.join(self.list_dir, "episodelock.npy")
-#
-#         self.tensorboard_dir = os.path.join(self.root, 'tensorboard')
-#         self.checkpoints_dir = os.path.join(self.root, 'checkpoints')
-#         self.results_dir = os.path.join(self.root, 'results')
-#         self.code_dir = os.path.join(self.root, 'code')
-#         self.analysis_dir = os.path.join(self.root, 'analysis')
-#         self.checkpoint = os.path.join(self.checkpoints_dir, 'checkpoint')
-#         self.checkpoint_best = os.path.join(self.checkpoints_dir, 'checkpoint_best')
-#         self.replay_dir = os.path.join(self.indir, self.exp_name)
-#         self.scores_dir = os.path.join(self.root, 'scores')
-#
-#         if not os.path.exists(self.snapshot_path):
-#             os.makedirs(self.snapshot_path)
-#         if not os.path.exists(self.screen_dir):
-#             os.makedirs(self.screen_dir)
-#         if not os.path.exists(self.trajectory_dir):
-#             os.makedirs(self.trajectory_dir)
-#         if not os.path.exists(self.list_old_path):
-#             os.makedirs(self.list_old_path)
-#         if not os.path.exists(self.modeldir):
-#             os.makedirs(self.modeldir)
-#         if not os.path.exists(self.rawdata):
-#             os.makedirs(self.rawdata)
-#         if not os.path.exists(self.tensorboard_dir):
-#             os.makedirs(self.tensorboard_dir)
-#         if not os.path.exists(self.checkpoints_dir):
-#             os.makedirs(self.checkpoints_dir)
-#         if not os.path.exists(self.results_dir):
-#             os.makedirs(self.results_dir)
-#         if not os.path.exists(self.code_dir):
-#             os.makedirs(self.code_dir)
-#         if not os.path.exists(self.analysis_dir):
-#             os.makedirs(self.analysis_dir)
-#         if not os.path.exists(self.checkpoint):
-#             os.makedirs(self.checkpoint)
-#         if not os.path.exists(self.checkpoint_best):
-#             os.makedirs(self.checkpoint_best)
-#         if not os.path.exists(self.replay_dir):
-#             os.makedirs(self.replay_dir)
-#         if not os.path.exists(self.scores_dir):
-#             os.makedirs(self.scores_dir)
-
-

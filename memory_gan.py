@@ -20,7 +20,7 @@ class Memory(torch.utils.data.Dataset):
 
         sample, next_sample = sample
 
-        if not sample['t']:
+        if sample['traj'] is next_sample['traj'] and not sample['t']:
             s_tag = np.array(next_sample['st'])
         else:
             s_tag = np.zeros((self.action_space, self.action_space), dtype=np.float32)

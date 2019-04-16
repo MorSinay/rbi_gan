@@ -53,15 +53,13 @@ class GANAgent(Agent):
         self.q_loss = nn.SmoothL1Loss(reduction='none')
         self.kl_loss = nn.KLDivLoss()
 
-        self.a_zeros = torch.zeros(1, 1).long().to(self.device)
-        self.a_zeros_batch = self.a_zeros.repeat(self.batch, 1)
-
         if player:
             # play variables
             self.env = Env()
             # TODO Mor: look
             self.n_replay_saved = 1
             self.frame = 0
+            self.save_to_mem = args.save_to_mem
 
         else:
             # datasets
@@ -100,8 +98,8 @@ class GANAgent(Agent):
     def load_checkpoint(self, path):
 
         if not os.path.exists(path):
-            return {'n':0}
-            #assert(False), "load_checkpoint"
+        #    return {'n':0}
+            assert False, "load_checkpoint"
 
         state = torch.load(path, map_location="cuda:%d" % self.cuda_id)
 
@@ -209,10 +207,12 @@ class GANAgent(Agent):
                     results = {key: [] for key in results}
 
                     if n >= n_tot:
+                        print("break")
                         break
 
+        print("Learn Finish")
+
     def play(self, n_tot):
-        trajectory_dir = self.trajectory_dir
         # set initial episodes number
         # lock read
         fwrite = lock_file(self.episodelock)
@@ -296,18 +296,10 @@ class GANAgent(Agent):
 
                 self.frame += 1
 
-            if self.env.t:
+            if (not self.env.k % self.save_to_mem) or self.env.t:
 
                 episode_df = np.stack(episode)
-
                 trajectory.append(episode_df)
-
-                # read
-                fwrite = lock_file(self.episodelock)
-                episode_num = np.load(fwrite).item()
-                fwrite.seek(0)
-                np.save(fwrite, episode_num + 1)
-                release_file(fwrite)
 
                 # write if enough space is available
                 if psutil.virtual_memory().available >= mem_threshold:
@@ -322,7 +314,7 @@ class GANAgent(Agent):
                     traj_to_save = np.concatenate(trajectory)
                     traj_to_save['traj'] = traj_num
 
-                    traj_file = os.path.join(trajectory_dir, "%d.npy" % traj_num)
+                    traj_file = os.path.join(self.trajectory_dir, "%d.npy" % traj_num)
                     np.save(traj_file, traj_to_save)
 
                     fread = lock_file(self.readlock)
@@ -330,8 +322,17 @@ class GANAgent(Agent):
                     fread.seek(0)
                     np.save(fread, np.append(traj_list, traj_num))
                     release_file(fread)
+                else:
+                    assert False, "memory issue"
 
-                self.env.reset()
+                if self.env.t:
+                    fwrite = lock_file(self.episodelock)
+                    episode_num = np.load(fwrite).item()
+                    fwrite.seek(0)
+                    np.save(fwrite, episode_num + 1)
+                    release_file(fwrite)
+
+                    self.env.reset()
 
             yield {'frames': self.frame}
 
@@ -350,9 +351,6 @@ class GANAgent(Agent):
         policies = [[[]] for _ in range(n_players)]
         trajectory = [[] for _ in range(n_players)]
 
-        trajectory_dir = [self.trajectory_dir] * n_players
-        readlock = [self.readlock] * n_players
-
         # set initial episodes number
         # lock read
         fwrite = lock_file(self.episodelock)
@@ -365,11 +363,11 @@ class GANAgent(Agent):
 #        for i in range(n_players):
  #           mp_env[i].reset()
 
-        for _ in tqdm(itertools.count()):
+        for n in tqdm(itertools.count()):
 
-            if not (self.frame % self.load_memory_interval):
+            if not (n % self.load_memory_interval):
                 try:
-                    self.load_checkpoint(self.snapshot_path)
+                    aux = self.load_checkpoint(self.snapshot_path)
                 except:
                     pass
 
@@ -432,28 +430,15 @@ class GANAgent(Agent):
 
                 self.frame += 1
 
-
-                #TODO Mor: need
-
-
-                if env.t :
+                if (not env.k % self.save_to_mem) or env.t:
 
                     print("player {} - acc {}, n-offset {}, frame {}, episode {} k {}".format(i, env.acc, self.n_offset, self.frame, episode_num[i], env.k))
 
                     episode_df = np.stack(episode[i])
                     trajectory[i].append(episode_df)
 
-                    # read
-                    fwrite = lock_file(self.episodelock)
-                    episode_num[i] = np.load(fwrite).item()
-                    fwrite.seek(0)
-                    np.save(fwrite, episode_num[i] + 1)
-                    release_file(fwrite)
-
-
                     # write if enough space is available
                     if psutil.virtual_memory().available >= mem_threshold:
-
                         # read
                         fwrite = lock_file(self.writelock)
                         traj_num = np.load(fwrite).item()
@@ -464,18 +449,28 @@ class GANAgent(Agent):
                         traj_to_save = np.concatenate(trajectory[i])
                         traj_to_save['traj'] = traj_num
 
-                        traj_file = os.path.join(trajectory_dir[i], "%d.npy" % traj_num)
+                        traj_file = os.path.join(self.trajectory_dir, "%d.npy" % traj_num)
                         np.save(traj_file, traj_to_save)
 
-                        fread = lock_file(readlock[i])
+                        fread = lock_file(self.readlock)
                         traj_list = np.load(fread)
                         fread.seek(0)
                         np.save(fread, np.append(traj_list, traj_num))
                         release_file(fread)
+                    else:
+                        assert False, "memory error available memory {}".format(psutil.virtual_memory().available)
 
                     trajectory[i] = []
 
-                    env.reset()
+                    if env.t:
+
+                        fwrite = lock_file(self.episodelock)
+                        episode_num[i] = np.load(fwrite).item()
+                        fwrite.seek(0)
+                        np.save(fwrite, episode_num[i] + 1)
+                        release_file(fwrite)
+
+                        env.reset()
 
             self.frame += 1
             if not self.frame % self.player_replay_size:

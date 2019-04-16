@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
 from torchvision import datasets, transforms
+from memory_fmnist import Singleton_Mem,Memory
 from Dummy_Gen import DummyGen
 from Net import Net
 import torch.optim as optim
@@ -15,7 +16,8 @@ from config import consts, args
 class Env(object):
 
     def __init__(self):
-        self.dummyG = DummyGen()
+        #self.dummyG = DummyGen()
+        self.memory = Singleton_Mem()
         self.output_size = consts.action_space
         self.batch_size = args.env_batch_size
         use_cuda = not args.no_cuda and torch.cuda.is_available()
@@ -27,14 +29,14 @@ class Env(object):
         self.iterations = args.env_iterations
         self.t = 0
         self.k = 0
-        self.max_k = 500 #5600
+        self.max_k = 6000
         self.reset()
 
     def reset(self):
         self.model.load_model()
         self.state = torch.Tensor(self.model.test_only_one_batch())
         self.acc = torch.trace(self.state).item()
-        self.t = np.int64(0)
+        self.t = 0
         self.k = 0
 
     def step_policy(self, policy):
@@ -55,7 +57,7 @@ class Env(object):
 
             # TODO: need to check about the option to save all the test on a GPU
             # TODO: maybe save a GPU to tun only the test
-            new_state = torch.tensor(self.model.test_only_one_batch())
+            new_state = torch.tensor(self.model.test_only_one_batch(), dtype=torch.float)
 
             next_acc = torch.trace(new_state).item()
             self.reward = np.float32((next_acc - self.acc)/(1-self.acc))
@@ -69,13 +71,14 @@ class Env(object):
 
             if self.k >= self.max_k or self.acc >= 0.85:
                 # TODO: is it right?
-                self.t = np.int64(1)
+                self.t = 1
 
     def step(self, a):
 
         for _ in range(self.iterations):
 
-            data_gen, label_gen = self.dummyG.gen(a)
+            #data_gen, label_gen = self.dummyG.gen(a)
+            data_gen, label_gen = self.memory.get_item(a)
 
             #self.model.train_batch(data_gen, actions_one_hot)
             self.model.train_batch(data_gen, label_gen)
@@ -96,7 +99,7 @@ class Env(object):
 
             if self.k >= self.max_k or self.acc >= 0.85:
                 # TODO: is it right?
-                self.t = np.int64(1)
+                self.t = 1
 
 class Model():
     def __init__(self):
@@ -113,6 +116,7 @@ class Model():
         self.model_dir = consts.modeldir
 
         self.load_test_loader()
+        #self.single_test_loader = Singleton_Loader()
         self.load_model()
 
     def train(self, train_loader):
@@ -176,7 +180,7 @@ class Model():
         #    100. * correct / len(self.test_loader.dataset)))
 
         #TODO Mor - looks
-        cm = cm / len(self.test_loader.dataset)
+        cm = cm / self.test_loader_batch
         return cm
 
 
@@ -218,8 +222,12 @@ class Model():
         dataset = datasets.FashionMNIST(root=consts.rawdata, train=False, transform=transform,
                                         download=False)
 
+     #   self.test_loader = torch.utils.data.DataLoader(dataset=dataset,
+      #                                                 batch_size=self.test_loader_batch, shuffle=True,
+       #                                                num_workers=args.cpu_workers)
+
         self.test_loader = torch.utils.data.DataLoader(dataset=dataset,
-                                                       batch_size=self.test_loader_batch, shuffle=False)
+                                                        batch_size=self.test_loader_batch, shuffle=True)
 
 
 def train_primarily_model(sumples_per_class, batch_size,epochs):
@@ -255,3 +263,34 @@ def train_primarily_model(sumples_per_class, batch_size,epochs):
         print("test epoch {} accuracy {:.2f}".format(epoch, torch.trace(testcm).item()))
 
     model.save_model()
+
+
+
+class Singleton(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class Singleton_Loader(metaclass=Singleton):
+    def __init__(self):
+        transform = transforms.Compose([transforms.ToTensor()  # ,
+                                        # transforms.Normalize(mean=(0.5,0.5,0.5), std=(0.5,0.5,0.5))
+                                        ])
+
+        dataset = datasets.FashionMNIST(root=consts.rawdata, train=False, transform=transform,
+                                        download=False)
+
+
+        self.test_loader = torch.utils.data.DataLoader(dataset=dataset,
+                                                        batch_size=args.test_loader_batch_size, shuffle=True,
+                                                       num_workers=args.cpu_workers,pin_memory=False)
+
+        # self.test_loader = torch.utils.data.DataLoader(dataset=dataset,
+        #                                                batch_size=self.test_loader_batch, shuffle=True, num_workers=10,
+        #                                                pin_memory=False)
+
+
