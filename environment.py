@@ -214,9 +214,8 @@ class Model():
 
     def load_test_loader(self):
 
-        transform = transforms.Compose([transforms.ToTensor()  # ,
-                                        # transforms.Normalize(mean=(0.5,0.5,0.5), std=(0.5,0.5,0.5))
-                                        ])
+        transform = transforms.Compose([transforms.ToTensor(),
+                                        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
 
 
         dataset = datasets.FashionMNIST(root=consts.rawdata, train=False, transform=transform,
@@ -234,9 +233,8 @@ def train_primarily_model(sumples_per_class, batch_size,epochs):
     model = Model()
     model.create_model()
 
-    transform = transforms.Compose([transforms.ToTensor()  # ,
-                                    # transforms.Normalize(mean=(0.5,0.5,0.5), std=(0.5,0.5,0.5))
-                                    ])
+    transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
 
     mnist_data = datasets.FashionMNIST(root=consts.rawdata,
                                        train=True,
@@ -277,9 +275,8 @@ class Singleton(type):
 
 class Singleton_Loader(metaclass=Singleton):
     def __init__(self):
-        transform = transforms.Compose([transforms.ToTensor()  # ,
-                                        # transforms.Normalize(mean=(0.5,0.5,0.5), std=(0.5,0.5,0.5))
-                                        ])
+        transform = transforms.Compose([transforms.ToTensor(),
+                                        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
 
         dataset = datasets.FashionMNIST(root=consts.rawdata, train=False, transform=transform,
                                         download=False)

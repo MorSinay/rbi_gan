@@ -207,7 +207,7 @@ class GANAgent(Agent):
                     results = {key: [] for key in results}
 
                     if n >= n_tot:
-                        print("break")
+                        self.save_checkpoint(self.snapshot_path, {'n': n})
                         break
 
         print("Learn Finish")
@@ -367,7 +367,7 @@ class GANAgent(Agent):
 
             if not (n % self.load_memory_interval):
                 try:
-                    aux = self.load_checkpoint(self.snapshot_path)
+                    self.load_checkpoint(self.snapshot_path)
                 except:
                     pass
 

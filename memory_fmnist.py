@@ -9,9 +9,8 @@ class Memory(torch.utils.data.Dataset):
 
     def __init__(self):
         super(Memory, self).__init__()
-        transform = transforms.Compose([transforms.ToTensor()  # ,
-                                        # transforms.Normalize(mean=(0.5,0.5,0.5), std=(0.5,0.5,0.5))
-                                        ])
+        transform = transforms.Compose([transforms.ToTensor(),
+                                        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
 
         rawdata = os.path.join('/dev/shm/', 'elkayam', 'fmnist')
 

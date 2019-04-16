@@ -3,7 +3,6 @@ from memory_fmnist import Singleton_Mem
 from Dummy_Gen import DummyGen
 import numpy as np
 from tic_toc import tic,toc
-from environment import Env
+from environment import train_primarily_model
 
-env = Env()
-
+train_primarily_model(250, 128, 5)
