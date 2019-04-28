@@ -34,6 +34,8 @@ parser.add_argument('--no-cuda', action='store_true', default=False,
 # Env Arguments
 parser.add_argument('--env-batch-size', type=int, default=32, metavar='N',
                     help='env batch size for training (default: 64)')
+parser.add_argument('--env-max-k', type=int, default=6000, metavar='N',
+                    help='env game length (default: 6000)')
 parser.add_argument('--env-iterations', type=int, default=1, metavar='N',
                     help='number of env iterations (default: 1)')
 
@@ -66,7 +68,9 @@ boolean_feature("learn", False, 'Learn from the observations')
 boolean_feature("play", False, 'Test the learned model via playing')
 boolean_feature("postprocess", False, 'Postprocess evaluation results')
 boolean_feature("multiplay", False, 'Send samples to memory from multiple parallel players')
+boolean_feature("multiplay-random", False, 'Send random samples to memory from multiple parallel players')
 boolean_feature("evaluate", False, 'evaluate player')
+boolean_feature("evaluate-random-policy", False, 'evaluate random policy|action player')
 boolean_feature("clean", False, 'Clean old trajectories')
 #TODO Mor: True
 boolean_feature("tensorboard", False, "Log results to tensorboard")
@@ -126,8 +130,8 @@ class Consts(object):
     mem_threshold = int(5e9)
 
     rec_type = np.dtype([('fr', np.int64), ('st', np.float32, (1,action_space*action_space)), ('a', np.int64),
-                         ('r', np.float32), ('t', np.int64), ('pi', np.float32, action_space), ('traj', np.int64),
-                         ('ep', np.int64)])
+                         ('r', np.float32), ('acc', np.float32), ('t', np.int64), ('pi', np.float32, action_space),
+                         ('traj', np.int64), ('ep', np.int64)])
 
     outdir = os.path.join(base_dir, 'results')
     indir = os.path.join('/dev/shm/', username, 'gan_rl')

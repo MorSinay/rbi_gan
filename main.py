@@ -18,24 +18,28 @@ def main():
     with Experiment(logger.filename) as exp:
 
         if args.learn:
-            logger.info("Enter RBI Learning Session, it might take a while")
+            logger.info("GanRL Learning Session, it might take a while")
             exp.learn()
 
         elif args.play:
-            logger.info("Evaluate final performance")
+            logger.info("Start a player Session")
             exp.play()
 
-        elif args.evaluate: # elad
-            logger.info("Enter RBI playing Session, I hope it goes well")
+        elif args.evaluate:
+            logger.info("Evaluate final performance")
             exp.evaluate()
+
+        elif args.evaluate_random_policy:
+            logger.info("Evaluate random policy performance")
+            exp.evaluate_random_policy()
 
         elif args.multiplay:
             logger.info("Start a multiplay Session")
             exp.multiplay()
 
-        elif args.postprocess:
-            logger.info("Create pandas Dataframe")
-            exp.postprocess()
+        elif args.multiplay_random:
+            logger.info("Start a random multiplay Session")
+            exp.multiplay_random()
 
         elif args.clean:
             logger.info("Clean old trajectories")

@@ -2,17 +2,16 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="4070f6ac-5e83-4aa8-8554-23a3ceb507bc" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/Runs/run_gan_random_player.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/random_actors.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Runs/run_gan_learner.sh" beforeDir="false" afterPath="$PROJECT_DIR$/Runs/run_gan_learner.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Runs/run_gan_player.sh" beforeDir="false" afterPath="$PROJECT_DIR$/Runs/run_gan_player.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/actors.sh" beforeDir="false" afterPath="$PROJECT_DIR$/actors.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/config.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/environment.py" beforeDir="false" afterPath="$PROJECT_DIR$/environment.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/experiment.py" beforeDir="false" afterPath="$PROJECT_DIR$/experiment.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gan_rl_agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/gan_rl_agent.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gan_rl_policy_agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/gan_rl_policy_agent.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/learner.sh" beforeDir="false" afterPath="$PROJECT_DIR$/learner.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/memory_gan.py" beforeDir="false" afterPath="$PROJECT_DIR$/memory_gan.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -23,18 +22,37 @@
   </component>
   <component name="CoverageDataManager">
     <SUITE FILE_PATH="coverage/rbi_gan$hello.coverage" NAME="remote_dbg Coverage Results" MODIFIED="1554649463041" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/rbi_gan$remote_dbg.coverage" NAME="remote_dbg Coverage Results" MODIFIED="1555507182670" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/rbi_gan$remote_dbg.coverage" NAME="remote_dbg Coverage Results" MODIFIED="1556470156016" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/gan_rl_agent.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1021">
-              <caret line="666" column="25" selection-start-line="666" selection-start-column="25" selection-end-line="666" selection-end-column="25" />
+            <state relative-caret-position="331">
+              <caret line="431" column="43" selection-start-line="431" selection-start-column="43" selection-end-line="431" selection-end-column="43" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
+                <element signature="e#4598#8567#0" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/Runs/run_gan_player.sh">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="255">
+              <caret line="20" column="28" selection-start-line="20" selection-start-column="28" selection-end-line="20" selection-end-column="28" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/Runs/run_gan_learner.sh">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="300">
+              <caret line="20" column="28" selection-start-line="20" selection-start-column="28" selection-end-line="20" selection-end-column="28" />
             </state>
           </provider>
         </entry>
@@ -42,8 +60,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/memory_gan.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="174">
-              <caret line="52" column="23" lean-forward="true" selection-start-line="52" selection-start-column="23" selection-end-line="52" selection-end-column="23" />
+            <state relative-caret-position="379">
+              <caret line="71" column="43" selection-start-line="71" selection-start-column="43" selection-end-line="71" selection-end-column="43" />
               <folding>
                 <element signature="e#0#23#0" expanded="true" />
               </folding>
@@ -54,10 +72,16 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/experiment.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="593">
-              <caret line="452" column="46" lean-forward="true" selection-start-line="452" selection-start-column="46" selection-end-line="452" selection-end-column="46" />
+            <state relative-caret-position="337">
+              <caret line="236" column="33" selection-start-line="236" selection-start-column="33" selection-end-line="236" selection-end-column="33" />
               <folding>
                 <element signature="e#13#22#0" expanded="true" />
+                <element signature="e#383#3177#0" />
+                <element signature="e#3529#3712#0" />
+                <element signature="e#6541#7416#0" />
+                <element signature="e#7921#8617#0" />
+                <element signature="e#8843#8961#0" />
+                <element signature="e#16792#17261#0" />
               </folding>
             </state>
           </provider>
@@ -66,10 +90,14 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/gan_rl_policy_agent.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="232">
-              <caret line="101" column="8" selection-start-line="101" selection-start-column="8" selection-end-line="101" selection-end-column="8" />
+            <state relative-caret-position="-206">
+              <caret line="638" lean-forward="true" selection-start-line="638" selection-end-line="638" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
+                <element signature="e#777#2728#0" />
+                <element signature="e#2786#3627#0" />
+                <element signature="e#3675#4516#0" />
+                <element signature="e#17684#20056#0" />
               </folding>
             </state>
           </provider>
@@ -78,8 +106,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/config.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="246">
-              <caret line="127" column="65" selection-start-line="127" selection-start-column="65" selection-end-line="127" selection-end-column="65" />
+            <state relative-caret-position="410">
+              <caret line="99" column="152" lean-forward="true" selection-start-line="92" selection-end-line="99" selection-end-column="152" />
               <folding>
                 <element signature="e#0#15#0" expanded="true" />
               </folding>
@@ -87,35 +115,31 @@
           </provider>
         </entry>
       </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/Runs/run_gan_random_player.sh">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="130">
+              <caret line="13" column="29" lean-forward="true" selection-start-line="13" selection-start-column="29" selection-end-line="13" selection-end-column="29" />
+            </state>
+          </provider>
+        </entry>
+      </file>
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/actors.sh">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="30">
-              <caret line="2" column="12" lean-forward="true" selection-start-line="2" selection-end-line="2" selection-end-column="12" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/environment.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="348">
-              <caret line="38" column="24" selection-start-line="38" selection-start-column="24" selection-end-line="38" selection-end-column="24" />
-              <folding>
-                <element signature="e#0#12#0" expanded="true" />
-                <element signature="e#4753#5797#0" />
-              </folding>
+            <state relative-caret-position="195">
+              <caret line="13" column="4" lean-forward="true" selection-start-line="13" selection-start-column="4" selection-end-line="13" selection-end-column="4" />
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/logger.py">
+        <entry file="file://$PROJECT_DIR$/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="170">
-              <caret line="30" column="35" selection-start-line="30" selection-start-column="35" selection-end-line="30" selection-end-column="35" />
+            <state relative-caret-position="265">
+              <caret line="29" column="26" lean-forward="true" selection-start-line="29" selection-start-column="26" selection-end-line="29" selection-end-column="26" />
               <folding>
-                <element signature="e#0#14#0" expanded="true" />
+                <element signature="e#0#31#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -132,20 +156,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>results_dir</find>
-      <find>snapshot_path</find>
-      <find>batch-size</find>
-      <find>args.env_batch_size</find>
-      <find>env_batch_size</find>
-      <find>args.batch</find>
-      <find>gan_rl_a</find>
-      <find>gan_rl_agent</find>
-      <find>tot</find>
-      <find>analysis_dir</find>
-      <find>value_net</find>
-      <find>epsilon</find>
-      <find>pi_rand</find>
-      <find>q_loss</find>
       <find>step_</find>
       <find>batch</find>
       <find>logdir</find>
@@ -157,12 +167,29 @@
       <find>-1</find>
       <find>s_flat</find>
       <find>type</find>
-      <find>Lear</find>
-      <find>state</find>
       <find>episode_format</find>
-      <find>GANAgent</find>
+      <find>checkpoint,</find>
+      <find>snap</find>
+      <find>self.checkpoint,</find>
+      <find>evaluate</find>
+      <find>Lear</find>
+      <find>multiplay</find>
+      <find>n-tot</find>
+      <find>env-batch-size</find>
+      <find>save-to-mem</find>
+      <find>tensor</find>
       <find>rand</find>
+      <find>pi_rand</find>
+      <find>state</find>
+      <find>multiplay_random</find>
+      <find>step(</find>
+      <find>GANAgent</find>
+      <find>evaluat</find>
+      <find>rewards</find>
     </findStrings>
+    <replaceStrings>
+      <replace>multiplay-random</replace>
+    </replaceStrings>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -173,23 +200,25 @@
         <option value="$PROJECT_DIR$/memory.py" />
         <option value="$PROJECT_DIR$/logger.py" />
         <option value="$PROJECT_DIR$/exp_temp.py" />
-        <option value="$PROJECT_DIR$/main.py" />
         <option value="$PROJECT_DIR$/Runs/actors.sh" />
         <option value="$PROJECT_DIR$/tic_toc.py" />
         <option value="$PROJECT_DIR$/Dummy_Gen.py" />
         <option value="$PROJECT_DIR$/memory_fmnist.py" />
         <option value="$PROJECT_DIR$/hello.py" />
         <option value="$PROJECT_DIR$/agent.py" />
-        <option value="$PROJECT_DIR$/memory_gan.py" />
         <option value="$PROJECT_DIR$/actors.sh" />
-        <option value="$PROJECT_DIR$/Runs/run_gan_player.sh" />
-        <option value="$PROJECT_DIR$/Runs/run_gan_learner.sh" />
         <option value="$PROJECT_DIR$/learner.sh" />
-        <option value="$PROJECT_DIR$/config.py" />
-        <option value="$PROJECT_DIR$/gan_rl_policy_agent.py" />
+        <option value="$PROJECT_DIR$/memory_gan.py" />
         <option value="$PROJECT_DIR$/environment.py" />
         <option value="$PROJECT_DIR$/experiment.py" />
+        <option value="$PROJECT_DIR$/config.py" />
+        <option value="$PROJECT_DIR$/random_actors.sh" />
+        <option value="$PROJECT_DIR$/main.py" />
+        <option value="$PROJECT_DIR$/gan_rl_policy_agent.py" />
         <option value="$PROJECT_DIR$/gan_rl_agent.py" />
+        <option value="$PROJECT_DIR$/Runs/run_gan_player.sh" />
+        <option value="$PROJECT_DIR$/Runs/run_gan_learner.sh" />
+        <option value="$PROJECT_DIR$/Runs/run_gan_random_player.sh" />
       </list>
     </option>
   </component>
@@ -284,7 +313,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
-      <option name="PARAMETERS" value="--algorithm=policy --identifier=debug --game=active --n-steps=1 --batch=64 --cpu-workers=48 --n-tot=10000 --play --resume=0 --load-last-model --n-players=3" />
+      <option name="PARAMETERS" value="--algorithm=action --identifier=debug --game=active --n-steps=1 --n-tot=1 --evaluate --resume=0 --load-last-model --env-max-k=10 --tensorboard" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -313,7 +342,7 @@
       <option name="presentableId" value="Default" />
       <updated>1552490229859</updated>
       <workItem from="1552490231156" duration="87210000" />
-      <workItem from="1554649752637" duration="60446000" />
+      <workItem from="1554649752637" duration="75285000" />
     </task>
     <task id="LOCAL-00001" summary="colshehi">
       <created>1552915475287</created>
@@ -371,23 +400,29 @@
       <option name="project" value="LOCAL" />
       <updated>1555410044726</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="policy agent + state flat">
+      <created>1556438742777</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1556438742777</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="147656000" />
+    <option name="totallyTimeSpent" value="162495000" />
   </component>
   <component name="ToolWindowManager">
-    <frame x="1" y="23" width="1920" height="982" extended-state="6" />
-    <editor active="true" />
+    <frame x="-1" y="23" width="1920" height="984" extended-state="6" />
     <layout>
       <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.25239617" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" weight="0.33033708" />
-      <window_info anchor="bottom" id="Debug" order="3" visible="true" weight="0.39775282" />
+      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.3295964" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.396861" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" />
@@ -412,12 +447,12 @@
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
       <window_info anchor="bottom" id="Run" order="2" weight="0.33033708" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.39775282" />
+      <window_info anchor="bottom" id="Debug" order="3" visible="true" weight="0.39597315" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" />
       <window_info anchor="bottom" id="Docker" order="7" show_stripe_button="false" />
-      <window_info anchor="bottom" id="Version Control" order="8" visible="true" weight="0.32921347" />
+      <window_info anchor="bottom" id="Version Control" order="8" weight="0.32921347" />
       <window_info anchor="bottom" id="File Transfer" order="9" weight="0.32924107" />
       <window_info anchor="bottom" id="Database Changes" order="10" />
       <window_info anchor="bottom" id="Terminal" order="11" />
@@ -453,7 +488,8 @@
     <MESSAGE value="multiplayer work on sh&#10;update multiplay to work on 30 players" />
     <MESSAGE value="singletone on generator" />
     <MESSAGE value="normalize" />
-    <option name="LAST_COMMIT_MESSAGE" value="normalize" />
+    <MESSAGE value="policy agent + state flat" />
+    <option name="LAST_COMMIT_MESSAGE" value="policy agent + state flat" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -475,12 +511,12 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/gan_rl_agent.py</url>
-          <line>476</line>
+          <line>486</line>
           <option name="timeStamp" value="88" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/gan_rl_agent.py</url>
-          <line>438</line>
+          <line>459</line>
           <option name="timeStamp" value="97" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -500,24 +536,49 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/experiment.py</url>
-          <line>187</line>
+          <line>186</line>
           <option name="timeStamp" value="125" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/gan_rl_policy_agent.py</url>
-          <line>419</line>
+          <line>423</line>
           <option name="timeStamp" value="130" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/gan_rl_agent.py</url>
-          <line>425</line>
+          <line>432</line>
           <option name="timeStamp" value="131" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/gan_rl_policy_agent.py</url>
+          <line>139</line>
+          <option name="timeStamp" value="139" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/gan_rl_policy_agent.py</url>
+          <line>537</line>
+          <option name="timeStamp" value="143" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/gan_rl_policy_agent.py</url>
+          <line>559</line>
+          <option name="timeStamp" value="144" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
   </component>
   <component name="debuggerHistoryManager">
     <expressions id="evaluateExpression">
+      <expression>
+        <expression-string>self.pi_rand</expression-string>
+        <language-id>Python</language-id>
+        <evaluation-mode>EXPRESSION</evaluation-mode>
+      </expression>
+      <expression>
+        <expression-string>results['a_player']</expression-string>
+        <language-id>Python</language-id>
+        <evaluation-mode>EXPRESSION</evaluation-mode>
+      </expression>
       <expression>
         <expression-string>args.algorithm</expression-string>
         <language-id>Python</language-id>
@@ -555,16 +616,6 @@
       </expression>
       <expression>
         <expression-string>episode_num[i]</expression-string>
-        <language-id>Python</language-id>
-        <evaluation-mode>EXPRESSION</evaluation-mode>
-      </expression>
-      <expression>
-        <expression-string>policies[0][-1][-1]</expression-string>
-        <language-id>Python</language-id>
-        <evaluation-mode>EXPRESSION</evaluation-mode>
-      </expression>
-      <expression>
-        <expression-string>policies[0][-1]</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
@@ -732,16 +783,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="369">
-          <caret line="50" selection-start-line="50" selection-end-line="50" />
-          <folding>
-            <element signature="e#0#31#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/Dummy_Gen.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-81">
@@ -816,20 +857,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/actors.sh">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="30">
-          <caret line="2" column="12" lean-forward="true" selection-start-line="2" selection-end-line="2" selection-end-column="12" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Runs/run_gan_learner.sh">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="195">
-          <caret line="13" column="48" selection-start-line="13" selection-start-column="48" selection-end-line="13" selection-end-column="48" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/learner.sh">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="135">
@@ -837,27 +864,85 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Runs/run_gan_player.sh">
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/tensorboardX/summary.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="87">
-          <caret line="6" column="12" lean-forward="true" selection-start-line="2" selection-end-line="6" selection-end-column="12" />
+        <state relative-caret-position="191">
+          <caret line="120" selection-start-line="120" selection-end-line="120" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/numpy/lib/shape_base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="171">
+          <caret line="538" selection-start-line="538" selection-end-line="538" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/environment.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="154">
+          <caret line="79" selection-start-line="79" selection-end-line="79" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+            <element signature="e#4753#5797#0" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/memory_gan.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="174">
-          <caret line="52" column="23" lean-forward="true" selection-start-line="52" selection-start-column="23" selection-end-line="52" selection-end-column="23" />
+        <state relative-caret-position="379">
+          <caret line="71" column="43" selection-start-line="71" selection-start-column="43" selection-end-line="71" selection-end-column="43" />
           <folding>
             <element signature="e#0#23#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/random_actors.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="135">
+          <caret line="9" column="20" lean-forward="true" selection-start-line="9" selection-start-column="20" selection-end-line="9" selection-end-column="20" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="265">
+          <caret line="29" column="26" lean-forward="true" selection-start-line="29" selection-start-column="26" selection-end-line="29" selection-end-column="26" />
+          <folding>
+            <element signature="e#0#31#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/experiment.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="337">
+          <caret line="236" column="33" selection-start-line="236" selection-start-column="33" selection-end-line="236" selection-end-column="33" />
+          <folding>
+            <element signature="e#13#22#0" expanded="true" />
+            <element signature="e#383#3177#0" />
+            <element signature="e#3529#3712#0" />
+            <element signature="e#6541#7416#0" />
+            <element signature="e#7921#8617#0" />
+            <element signature="e#8843#8961#0" />
+            <element signature="e#16792#17261#0" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/actors.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="195">
+          <caret line="13" column="4" lean-forward="true" selection-start-line="13" selection-start-column="4" selection-end-line="13" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/config.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="246">
-          <caret line="127" column="65" selection-start-line="127" selection-start-column="65" selection-end-line="127" selection-end-column="65" />
+        <state relative-caret-position="410">
+          <caret line="99" column="152" lean-forward="true" selection-start-line="92" selection-end-line="99" selection-end-column="152" />
           <folding>
             <element signature="e#0#15#0" expanded="true" />
           </folding>
@@ -866,42 +951,47 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/gan_rl_policy_agent.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="232">
-          <caret line="101" column="8" selection-start-line="101" selection-start-column="8" selection-end-line="101" selection-end-column="8" />
+        <state relative-caret-position="-206">
+          <caret line="638" lean-forward="true" selection-start-line="638" selection-end-line="638" />
           <folding>
             <element signature="e#0#12#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/experiment.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="593">
-          <caret line="452" column="46" lean-forward="true" selection-start-line="452" selection-start-column="46" selection-end-line="452" selection-end-column="46" />
-          <folding>
-            <element signature="e#13#22#0" expanded="true" />
+            <element signature="e#777#2728#0" />
+            <element signature="e#2786#3627#0" />
+            <element signature="e#3675#4516#0" />
+            <element signature="e#17684#20056#0" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/gan_rl_agent.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1021">
-          <caret line="666" column="25" selection-start-line="666" selection-start-column="25" selection-end-line="666" selection-end-column="25" />
+        <state relative-caret-position="331">
+          <caret line="431" column="43" selection-start-line="431" selection-start-column="43" selection-end-line="431" selection-end-column="43" />
           <folding>
             <element signature="e#0#12#0" expanded="true" />
+            <element signature="e#4598#8567#0" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/environment.py">
+    <entry file="file://$PROJECT_DIR$/Runs/run_gan_player.sh">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="348">
-          <caret line="38" column="24" selection-start-line="38" selection-start-column="24" selection-end-line="38" selection-end-column="24" />
-          <folding>
-            <element signature="e#0#12#0" expanded="true" />
-            <element signature="e#4753#5797#0" />
-          </folding>
+        <state relative-caret-position="255">
+          <caret line="20" column="28" selection-start-line="20" selection-start-column="28" selection-end-line="20" selection-end-column="28" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Runs/run_gan_learner.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="300">
+          <caret line="20" column="28" selection-start-line="20" selection-start-column="28" selection-end-line="20" selection-end-column="28" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Runs/run_gan_random_player.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="130">
+          <caret line="13" column="29" lean-forward="true" selection-start-line="13" selection-start-column="29" selection-end-line="13" selection-end-column="29" />
         </state>
       </provider>
     </entry>

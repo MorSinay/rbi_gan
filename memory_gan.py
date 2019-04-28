@@ -27,7 +27,7 @@ class Memory(torch.utils.data.Dataset):
 
         return {'s': torch.from_numpy(np.array(sample['st'])), 'r': torch.from_numpy(np.array(sample['r'])),
                 'a': torch.from_numpy(np.array(sample['a'])), 't': torch.from_numpy(np.array(sample['t'])),
-                'pi': torch.from_numpy(sample['pi']),
+                'pi': torch.from_numpy(sample['pi']), 'acc': torch.from_numpy(np.array(sample['acc'])),
                 's_tag': torch.from_numpy(s_tag), 'pi_tag': torch.from_numpy(next_sample['pi'])}
 
 
@@ -66,14 +66,14 @@ class ReplayBatchSampler(object):
             np.save(fread, [])
             release_file(fread)
             # if flag:
-            #traj_sorted = list(range(1680))
+            #traj_sorted = list(range(1000))
             #
             if not len(traj_sorted):
                 #print("traj_sorted empty")
                 #time.sleep(5)
             #     if flag:
             #         break
-                #traj_sorted = list(range(15))*150
+            #    traj_sorted = list(range(1000))
                 continue
 
             replay = np.concatenate([np.load(os.path.join(self.trajectory_dir, "%d.npy" % traj)) for traj in traj_sorted], axis=0)

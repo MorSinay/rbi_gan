@@ -18,8 +18,8 @@ if [ $game = "generate" ]; then
     tensor="--no-tensorboard"
 fi
 
-
 args="--algorithm=$algorithm"
+
 
 CUDA_VISIBLE_DEVICES=0, python $loc/main.py --clean --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux &
 

@@ -29,7 +29,7 @@ class Env(object):
         self.iterations = args.env_iterations
         self.t = 0
         self.k = 0
-        self.max_k = 6000
+        self.max_k = args.env_max_k
         self.reset()
 
     def reset(self):
@@ -73,7 +73,6 @@ class Env(object):
             self.k += 1
 
             if self.k >= self.max_k:# or self.acc >= 0.85:
-                # TODO: is it right?
                 self.t = 1
 
     def step(self, a):

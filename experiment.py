@@ -141,8 +141,7 @@ class Experiment(object):
             print("wait for first samples")
 
 
-            #TODO Mor
-            if len(os.listdir(self.dirs_locks.trajectory_dir)) >= 10:
+            if len(os.listdir(self.dirs_locks.trajectory_dir)) > 0:
                 hold = 0
 
             time.sleep(5)
@@ -172,8 +171,8 @@ class Experiment(object):
                 self.writer.add_scalar('train_loss/loss_value', float(avg_train_loss_v_beta), n + n_offset)
                 self.writer.add_scalar('train_loss/loss_std', float(avg_train_loss_std), n + n_offset)
 
-                self.writer.add_scalar('states/state', train_results['s'], n)
-                self.writer.add_scalar('actions/reward', train_results['r'], n)
+                #self.writer.add_scalar('states/state', train_results['s'], n)
+                self.writer.add_scalar('actions/reward', train_results['r'][-1], n)
                 self.writer.add_histogram("actions/a_player", train_results['a_player'], n + n_offset, 'doane')
 
                 if hasattr(agent, "beta_net"):
@@ -231,6 +230,18 @@ class Experiment(object):
                 # agent.set_player(player['player'], behavioral_avg_score=player['high'],
                 #                  behavioral_avg_frame=player['frames'])
 
+    def multiplay_random(self):
+        agent = self.choose_agent()(self.exp_name, player=True, checkpoint=self.checkpoint)
+        multiplay_random = agent.multiplay_random()
+
+        for _ in multiplay_random:
+            pass
+            # print("player X finished")
+            # player = self.get_player(agent)
+            # if player:
+            # agent.set_player(player['player'], behavioral_avg_score=player['high'],
+            #                  behavioral_avg_frame=player['frames'])
+
     def play(self, params=None):
 
         uuid = "%012d" % np.random.randint(1e12)
@@ -255,149 +266,6 @@ class Experiment(object):
 
         agent = self.choose_agent()(self.exp_name, player=True, checkpoint=self.checkpoint, choose=True)
         agent.clean()
-
-  #  def evaluate(self):
-   #     return
-        # uuid = "%012d" % np.random.randint(1e12)
-        # agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint, choose=True)
-        #
-        # best_score = -np.inf
-        #
-        # tensorboard_path = os.path.join(self.results_dir, uuid)
-        # os.makedirs(tensorboard_path)
-        #
-        # if args.tensorboard:
-        #     self.writer = SummaryWriter(log_dir=tensorboard_path, comment="%s_%s" % (args.identifier, uuid))
-        #
-        # results_filename = os.path.join(agent.best_player_dir, "%s.npy" % uuid)
-        # scores_dir = os.path.join(self.scores_dir, uuid)
-        # os.makedirs(scores_dir)
-        #
-        # kk = 0
-        #
-        # if args.algorithm in ["rbi", "rbi_rnn"]:
-        #     results = {'n': 0,
-        #                'statistics': {
-        #                    'reroute': {'player': 'reroutetv', 'cmin': args.cmin, 'cmax': args.cmax, 'delta': args.delta, 'score': 0, 'high': 0, 'frames':1},
-        #                    'behavioral': {'player': 'behavioral', 'cmin': None, 'cmax': None, 'delta': 0, 'score': 0, 'high': 0, 'frames':1}
-        #                }}
-        # elif args.algorithm in ["ape", "r2d2"]:
-        #     results = {'n': 0,
-        #                'statistics': {
-        #                    'reroute': {'player': 'reroutetv', 'cmin': args.cmin, 'cmax': args.cmax, 'delta': args.delta, 'score': 0, 'high': 0, 'frames':1},
-        #                    'behavioral': {'player': 'behavioral', 'cmin': None, 'cmax': None, 'delta': 0, 'score': 0, 'high': 0, 'frames':1}
-        #                }}
-        # elif args.algorithm == "ppo":
-        #     results = {'n': 0,
-        #                'statistics': {
-        #                    'reroute': {'player': 'reroutetv', 'cmin': args.cmin, 'cmax': args.cmax, 'delta': args.delta, 'score': 0, 'high': 0,
-        #                                           'frames': 1},
-        #                    'behavioral': {'player': 'behavioral', 'cmin': None, 'cmax': None, 'delta': 0, 'score': 0, 'high': 0,
-        #                                   'frames': 1}
-        #                }}
-        # else:
-        #     raise NotImplementedError
-        #
-        # time.sleep(args.wait)
-        #
-        # print("Here")
-        #
-        # while True:
-        #
-        #     # load model
-        #     try:
-        #         aux = agent.resume(agent.snapshot_path)
-        #     except:  # when reading and writing collide
-        #         time.sleep(2)
-        #         aux = agent.resume(agent.snapshot_path)
-        #
-        #     n = aux['n']
-        #
-        #     if n < args.random_initialization:
-        #         time.sleep(5)
-        #         continue
-        #
-        #     results['n'] = n
-        #     results['time'] = time.time() - consts.start_time
-        #
-        #     for player_name in results['statistics']:
-        #
-        #         scores = []
-        #         frames = []
-        #         mc = np.array([])
-        #         q = np.array([])
-        #
-        #         player_params = results['statistics'][player_name]
-        #         agent.set_player(player_params['player'], cmin=player_params['cmin'], cmax=player_params['cmax'],
-        #                          delta=player_params['delta'])
-        #
-        #         player = agent.play(args.play_episodes_interval, save=False, load=False)
-        #
-        #         stats = {"score": [], "frame": [], "time": [], "n": []}
-        #
-        #         tic = time.time()
-        #
-        #         for i, step in enumerate(player):
-        #
-        #             print("stats | player: %s | episode: %d | time: %g" % (player_name, i, time.time() - tic))
-        #             tic = time.time()
-        #             scores.append(step['score'])
-        #             frames.append(step['frames'])
-        #             mc = np.concatenate((mc, step['mc']))
-        #             q = np.concatenate((q, step['q']))
-        #
-        #             # add stats results
-        #             stats["score"].append(step['score'])
-        #             stats["frame"].append(step['frames'])
-        #             stats["n"].append(step['n'])
-        #             stats["time"].append(time.time() - consts.start_time)
-        #
-        #         # random selection
-        #         set_size = 200
-        #         indexes = np.random.choice(len(mc), set_size)
-        #         q = np.copy(q[indexes])
-        #         mc = np.copy(mc[indexes])
-        #
-        #         score = np.array(scores)
-        #         frames = np.array(frames)
-        #
-        #         player_params['score'] = score.mean()
-        #         # player_params['high'] = score.max()
-        #         player_params['frames'] = np.percentile(frames, 90)
-        #         player_params['high'] = np.percentile(scores, 90)
-        #
-        #         # save best player checkpoint
-        #         if player_name != "behavioral" and score.mean() > best_score:
-        #             best_score = score.mean()
-        #             agent.save_checkpoint(self.checkpoint_best, {'n': n, 'score': score})
-        #
-        #         if args.tensorboard:
-        #
-        #             self.writer.add_scalar('score/%s' % player_name, float(score.mean()), n)
-        #             self.writer.add_scalar('high/%s' % player_name, float(score.max()), n)
-        #             self.writer.add_scalar('low/%s' % player_name, float(score.min()), n)
-        #             self.writer.add_scalar('std/%s' % player_name, float(score.std()), n)
-        #             self.writer.add_scalar('frames/%s' % player_name, float(frames.mean()), n)
-        #
-        #             try:
-        #                 self.writer.add_histogram("mc/%s" % player_name, mc, n, 'fd')
-        #                 self.writer.add_histogram("q/%s" % player_name, q, n, 'fd')
-        #             except:
-        #                 pass
-        #
-        #         np.save(results_filename, results)
-        #
-        #         if self.log_scores:
-        #             logger.info("Save NPY file: %d_%s_%d_%s.npy" % (n, uuid, kk, player_name))
-        #             stat_filename = os.path.join(scores_dir, "%d_%s_%d_%s" % (n, uuid, kk, player_name))
-        #             np.save(stat_filename, stats)
-        #
-        #         kk += 1
-        #
-        #     if agent.n_offset >= args.n_tot:
-        #         break
-        #
-        # print("End of evaluation")
 
     def print_actions_statistics(self, a_player, loss_q, loss_beta):
 
@@ -438,7 +306,7 @@ class Experiment(object):
             else:
                 raise NotImplementedError
 
-        player = agent.evaluate(128)
+        player = agent.evaluate(1)
 
         for n, train_results in tqdm(enumerate(player)):
 
@@ -446,13 +314,65 @@ class Experiment(object):
 
             # log to tensorboard
             if args.tensorboard:
-                self.writer.add_scalar('evaluation/states/state', train_results['s'], n)
-                self.writer.add_scalar('evaluation/actions/reward', train_results['r'], n)
+
+                res_size = train_results['s'].shape[0]
+                for i in range(res_size):
+                    #self.writer.add_scalar('evaluation/states/state', train_results['s'][i], i)
+                    self.writer.add_scalar('evaluation/actions/reward', train_results['r'][i], i)
+                    self.writer.add_scalar('evaluation/actions/acc', train_results['acc'][i], i)
                 self.writer.add_histogram("evaluation/actions/a_player", train_results['a_player'], n, 'doane')
 
                 if hasattr(agent, "beta_net"):
                     for name, param in agent.beta_net.named_parameters():
-                        self.writer.add_histogram("beta_net/%s" % name, param.clone().cpu().data.numpy(), n, 'fd')
+                        self.writer.add_histogram("evaluation/beta_net/%s" % name, param.clone().cpu().data.numpy(), n, 'fd')
                 if hasattr(agent, "value_net"):
                     for name, param in agent.value_net.named_parameters():
-                        self.writer.add_histogram("value_net/%s" % name, param.clone().cpu().data.numpy(), n, 'fd')
+                        self.writer.add_histogram("evaluation/value_net/%s" % name, param.clone().cpu().data.numpy(), n, 'fd')
+
+
+    def evaluate_random_policy(self, params=None):
+        agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint)
+
+        # load model
+        try:
+            if params is not None:
+                aux = agent.resume(params)
+            elif self.load_last:
+                aux = agent.resume(self.checkpoint)
+            elif self.load_best:
+                aux = agent.resume(self.checkpoint_best)
+            else:
+                raise NotImplementedError
+        except:  # when reading and writing collide
+            time.sleep(2)
+            if params is not None:
+                aux = agent.resume(params)
+            elif self.load_last:
+                aux = agent.resume(self.checkpoint)
+            elif self.load_best:
+                aux = agent.resume(self.checkpoint_best)
+            else:
+                raise NotImplementedError
+
+        player = agent.evaluate_random_policy(1)
+
+        for n, train_results in tqdm(enumerate(player)):
+
+            print("print_evaluation_random_policy_experiment")
+
+            # log to tensorboard
+            if args.tensorboard:
+
+                res_size = train_results['s'].shape[0]
+                for i in range(res_size):
+                    #self.writer.add_scalar('evaluation_random_policy/states/state', train_results['s'][i], i)
+                    self.writer.add_scalar('evaluation_random_policy/actions/reward', train_results['r'][i], i)
+                    self.writer.add_scalar('evaluation_random_policy/actions/acc', train_results['acc'][i], i)
+                self.writer.add_histogram("evaluation_random_policy/actions/a_player", train_results['a_player'], n, 'doane')
+
+                if hasattr(agent, "beta_net"):
+                    for name, param in agent.beta_net.named_parameters():
+                        self.writer.add_histogram("evaluation_random_policy/beta_net/%s" % name, param.clone().cpu().data.numpy(), n, 'fd')
+                if hasattr(agent, "value_net"):
+                    for name, param in agent.value_net.named_parameters():
+                        self.writer.add_histogram("evaluation_random_policy/value_net/%s" % name, param.clone().cpu().data.numpy(), n, 'fd')

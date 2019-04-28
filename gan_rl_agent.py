@@ -127,7 +127,7 @@ class GANAgent(Agent):
         self.target_net.eval()
 
         results = {'n': [], 'loss_q': [], 'loss_beta': [], 'a_player': [], 'loss_std': [],
-                   'r': [], 's': [], 't': [], 'pi': [], 's_tag': [], 'pi_tag': []}
+                   'r': [], 's': [], 't': [], 'pi': [], 's_tag': [], 'pi_tag': [], 'acc': []}
 
         for n, sample in tqdm(enumerate(self.train_loader)):
 
@@ -136,6 +136,7 @@ class GANAgent(Agent):
             r = sample['r'].to(self.device, non_blocking=True)
             t = sample['t'].to(self.device, non_blocking=True)
             pi = sample['pi'].to(self.device, non_blocking=True)
+            acc = sample['acc'].to(self.device, non_blocking=True)
             s_tag = sample['s_tag'].to(self.device, non_blocking=True)
             pi_tag = sample['pi_tag'].to(self.device, non_blocking=True)
 
@@ -175,6 +176,7 @@ class GANAgent(Agent):
                 results['s'].append(s.data.cpu().numpy())
                 results['t'].append(t.data.cpu().numpy())
                 results['pi'].append(pi.data.cpu().numpy())
+                results['acc'].append(acc.data.cpu().numpy())
                 results['s_tag'].append(s_tag.data.cpu().numpy())
                 results['pi_tag'].append(pi_tag.data.cpu().numpy())
 
@@ -198,6 +200,7 @@ class GANAgent(Agent):
                     results['s'] = np.concatenate(results['s'])
                     results['t'] = np.concatenate(results['t'])
                     results['pi'] = np.concatenate(results['pi'])
+                    results['acc'] = np.concatenate(results['acc'])
                     results['s_tag'] = np.concatenate(results['s_tag'])
                     results['pi_tag'] = np.concatenate(results['pi_tag'])
 
@@ -228,6 +231,7 @@ class GANAgent(Agent):
             episode = []
             trajectory = []
             rewards = [[]]
+            acc = [[]]
             states = [[]]
             ts = [[]]
             policies = [[]]
@@ -288,9 +292,10 @@ class GANAgent(Agent):
                 ts[-1].append(self.env.t)
                 policies[-1].append(pi_mix)
                 rewards[-1].append(self.env.reward)
+                acc[-1].append(self.env.acc)
 
-                episode_format = np.array((self.frame, states[-1][-1].cpu().numpy(), a, rewards[-1][-1], ts[-1][-1],
-                              policies[-1][-1], -1, episode_num), dtype=consts.rec_type)
+                episode_format = np.array((self.frame, states[-1][-1].cpu().numpy(), a, rewards[-1][-1], acc[-1][-1],
+                    ts[-1][-1], policies[-1][-1], -1, episode_num), dtype=consts.rec_type)
 
                 episode.append(episode_format)
 
@@ -345,6 +350,7 @@ class GANAgent(Agent):
 
         range_players = np.arange(n_players)
         rewards = [[[]] for _ in range(n_players)]
+        accs = [[[]] for _ in range(n_players)]
         states = [[[]] for _ in range(n_players)]
         episode = [[] for _ in range(n_players)]
         ts = [[[]] for _ in range(n_players)]
@@ -375,7 +381,6 @@ class GANAgent(Agent):
                 self.value_net.eval()
 
             s = torch.cat([env.state.unsqueeze(0) for env in mp_env]).to(self.device)
-            #s_flat = s.view(-1, self.action_space * self.action_space)
 
             beta = self.beta_net(s)
             beta = F.softmax(beta.detach(), dim=1)
@@ -408,7 +413,6 @@ class GANAgent(Agent):
 
             pi_explore = self.epsilon * self.pi_rand + (1 - self.epsilon) * pi_mix
 
-            #pi_explore = pi_explore.astype(np.float32)
 
             for i in range(n_players):
 
@@ -419,12 +423,13 @@ class GANAgent(Agent):
                 env.step(a)
 
                 rewards[i][-1].append(env.reward)
+                accs[i][-1].append(env.acc)
                 states[i][-1].append(s[i])
                 ts[i][-1].append(env.t)
                 policies[i][-1].append(pi_mix[i])
 
-                episode_format = np.array((self.frame, states[i][-1][-1].cpu().numpy(), a, rewards[i][-1][-1], ts[i][-1][-1],
-                                           policies[i][-1][-1], -1, episode_num[i]), dtype=consts.rec_type)
+                episode_format = np.array((self.frame, states[i][-1][-1].cpu().numpy(), a, rewards[i][-1][-1], accs[i][-1][-1],
+                                           ts[i][-1][-1], policies[i][-1][-1], -1, episode_num[i]), dtype=consts.rec_type)
 
                 episode[i].append(episode_format)
 
@@ -482,19 +487,17 @@ class GANAgent(Agent):
     def train(self, n_interval, n_tot):
         return
 
-    def evaluate(self, n_interval, n_tot):
-        return
-
     def evaluate(self, n_tot):
 
+        self.load_checkpoint(self.snapshot_path)
+
+        self.env.reset()
+        results = {'n': [], 'a_player': [], 'r': [], 's': [], 't': [], 'pi': [], 'acc': []}
+
+        self.beta_net.eval()
+        self.value_net.eval()
+
         for i in range(n_tot):
-
-            self.env.reset()
-            results = {'n': [], 'a_player': [], 'r': [], 's': [], 't': [], 'pi': []}
-
-            self.beta_net.eval()
-            self.value_net.eval()
-
             while not self.env.t:
                 s = self.env.state.to(self.device)
 
@@ -536,28 +539,29 @@ class GANAgent(Agent):
                 results['t'].append(self.env.t)
                 results['pi'].append(pi_mix)
                 results['n'].append(self.frame)
+                results['acc'].append(self.env.acc)
 
                 self.frame += 1
 
             if self.env.t:
-                results['a_player'] = np.concatenate(results['a_player'])
-                results['r'] = np.concatenate(results['r'])
-                results['s'] = np.concatenate(results['s'])
-                results['t'] = np.concatenate(results['t'])
-                results['pi'] = np.concatenate(results['pi'])
-                results['n'] = np.concatenate(results['n'])
+                results['a_player'] = np.asarray(results['a_player'])
+                results['r'] = np.asarray(results['r'])
+                results['s'] = np.squeeze(np.asarray(results['s']), axis=1)
+                results['t'] = np.asarray(results['t'])
+                results['pi'] = np.asarray(results['pi'])
+                results['n'] = np.asarray(results['n'])
+                results['acc'] = np.asarray(results['acc'])
 
                 yield results
                 results = {key: [] for key in results}
                 self.env.reset()
 
-    def evaluate_random(self, n_tot):
+    def evaluate_random_policy(self, n_tot):
+
+        self.env.reset()
+        results = {'n': [], 'a_player': [], 'r': [], 's': [], 't': [], 'pi': [], 'acc': []}
 
         for i in range(n_tot):
-
-            self.env.reset()
-            results = {'n': [], 'a_player': [], 'r': [], 's': [], 't': [], 'pi': []}
-
             while not self.env.t:
                 s = self.env.state.to(self.device)
 
@@ -570,16 +574,18 @@ class GANAgent(Agent):
                 results['t'].append(self.env.t)
                 results['pi'].append(self.pi_rand)
                 results['n'].append(self.frame)
+                results['acc'].append(self.env.acc)
 
                 self.frame += 1
 
             if self.env.t:
-                results['a_player'] = np.concatenate(results['a_player'])
-                results['r'] = np.concatenate(results['r'])
-                results['s'] = np.concatenate(results['s'])
-                results['t'] = np.concatenate(results['t'])
-                results['pi'] = np.concatenate(results['pi'])
-                results['n'] = np.concatenate(results['n'])
+                results['a_player'] = np.asarray(results['a_player'])
+                results['r'] = np.asarray(results['r'])
+                results['s'] = np.squeeze(np.asarray(results['s']), axis=1)
+                results['t'] = np.asarray(results['t'])
+                results['pi'] = np.asarray(results['pi'])
+                results['n'] = np.asarray(results['n'])
+                results['acc'] = np.asarray(results['acc'])
 
                 yield results
                 results = {key: [] for key in results}
@@ -595,6 +601,7 @@ class GANAgent(Agent):
 
         range_players = np.arange(n_players)
         rewards = [[[]] for _ in range(n_players)]
+        accs = [[[]] for _ in range(n_players)]
         states = [[[]] for _ in range(n_players)]
         episode = [[] for _ in range(n_players)]
         ts = [[[]] for _ in range(n_players)]
@@ -609,9 +616,6 @@ class GANAgent(Agent):
         fwrite.seek(0)
         np.save(fwrite, current_num + n_players)
         release_file(fwrite)
-
-#        for i in range(n_players):
- #           mp_env[i].reset()
 
         for _ in tqdm(itertools.count()):
 
@@ -632,12 +636,13 @@ class GANAgent(Agent):
                 env.step(a)
 
                 rewards[i][-1].append(env.reward)
+                accs[i][-1].append(env.acc)
                 states[i][-1].append(s[i])
                 ts[i][-1].append(env.t)
                 policies[i][-1].append(self.pi_rand)
 
-                episode_format = np.array((self.frame, states[i][-1][-1].cpu().numpy(), a, rewards[i][-1][-1], ts[i][-1][-1],
-                                           policies[i][-1][-1], -1, episode_num[i]), dtype=consts.rec_type)
+                episode_format = np.array((self.frame, states[i][-1][-1].cpu().numpy(), a, rewards[i][-1][-1], accs[i][-1][-1],
+                                           ts[i][-1][-1], policies[i][-1][-1], -1, episode_num[i]), dtype=consts.rec_type)
 
                 episode[i].append(episode_format)
 
