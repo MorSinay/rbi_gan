@@ -66,7 +66,7 @@ class ReplayBatchSampler(object):
             np.save(fread, [])
             release_file(fread)
             # if flag:
-            #traj_sorted = list(range(16))
+            #traj_sorted = list(range(1680))
             #
             if not len(traj_sorted):
                 #print("traj_sorted empty")

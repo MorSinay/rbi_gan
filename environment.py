@@ -34,23 +34,26 @@ class Env(object):
 
     def reset(self):
         self.model.load_model()
-        self.state = torch.Tensor(self.model.test_only_one_batch())
-        self.acc = torch.trace(self.state).item()
+        cm = torch.Tensor(self.model.test_only_one_batch())
+        self.acc = torch.trace(cm).item()
+        self.state = cm.view(-1, self.output_size * self.output_size)
+
         self.t = 0
         self.k = 0
 
     def step_policy(self, policy):
 
-        assert(policy.shape[0] == self.output_size), "action error"
+        assert(policy.shape[1] == self.output_size), "action error"
 
         for _ in range(self.iterations):
             # TODO: need to check about the option of a sampler that sample from the policy distribution
-            action_batch = np.random.choice(self.output_size, self.batch_size, p=policy)
+            action_batch = np.random.choice(self.output_size, self.batch_size, p=policy[0])
 
             #actions_one_hot = np.zeros((self.batch_size, self.output_size))
             #actions_one_hot[np.arange(self.batch_size), action_batch] = 1
 
-            data_gen, label_gen = self.dummyG.gen(action_batch)
+            #data_gen, label_gen = self.dummyG.gen(action_batch)
+            data_gen, label_gen = self.memory.get_item(action_batch)
 
             #self.model.train_batch(data_gen, actions_one_hot)
             self.model.train_batch(data_gen, label_gen)
@@ -65,11 +68,11 @@ class Env(object):
             # TODO: add boost for the reward after some threshold
             assert ((self.reward <= 1) and (self.reward >= -1)), "step function - accuracy problem"
 
-            self.state = new_state
+            self.state = new_state.view(-1, self.output_size * self.output_size)
             self.acc = next_acc
             self.k += 1
 
-            if self.k >= self.max_k or self.acc >= 0.85:
+            if self.k >= self.max_k:# or self.acc >= 0.85:
                 # TODO: is it right?
                 self.t = 1
 
@@ -93,7 +96,7 @@ class Env(object):
             # TODO: add boost for the reward after some threshold
             assert ((self.reward <= 1) and (self.reward >= -1)), "step function - accuracy problem"
 
-            self.state = new_state
+            self.state = new_state.view(-1, self.output_size * self.output_size)
             self.acc = next_acc
             self.k += 1
 

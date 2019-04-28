@@ -29,7 +29,7 @@ class GANAgent(Agent):
 
     def __init__(self, exp_name, player=False, choose=False, checkpoint=None):
 
-        print("Learning with GANAgent")
+        print("Learning POLICY method with GANAgent")
         super(GANAgent, self).__init__(exp_name, checkpoint)
 
         use_cuda = not args.no_cuda and torch.cuda.is_available()
@@ -49,7 +49,7 @@ class GANAgent(Agent):
         self.target_net.to(self.device)
         self.target_net.load_state_dict(self.value_net.state_dict())
 
-        self.pi_rand = np.ones(self.action_space) / self.action_space
+        self.pi_rand = np.ones(self.action_space, dtype=np.float32) / self.action_space
         self.q_loss = nn.SmoothL1Loss(reduction='none')
         self.kl_loss = nn.KLDivLoss()
 
@@ -149,9 +149,9 @@ class GANAgent(Agent):
             x_tag = self.target_net(s_tag).detach()
             x = self.value_net(s)
             target_value = r + args.gamma * (pi_tag * x_tag).sum(dim=1)
-            pi_explore = self.epsilon * self.pi_rand + (1 - self.epsilon) * pi
+            pi_explore = (self.epsilon * self.pi_rand + (1 - self.epsilon) * pi).to(self.device)
             value = (pi_explore * x).sum(dim=1)
-            loss_q = self.q_loss(value, target_value)
+            loss_q = self.q_loss(value, target_value).mean()
 
             self.optimizer_beta.zero_grad()
             loss_beta.backward()
@@ -201,11 +201,10 @@ class GANAgent(Agent):
                     results = {key: [] for key in results}
 
                     if n >= n_tot:
-                        print("break")
+                        self.save_checkpoint(self.snapshot_path, {'n': n})
                         break
 
         print("Learn Finish")
-                # TODO: save result?
 
     def play(self, n_tot):
         # set initial episodes number
@@ -242,14 +241,14 @@ class GANAgent(Agent):
                     self.value_net.eval()
 
                 s = self.env.state.to(self.device)
-                s_flat = s.view(-1, self.action_space*self.action_space)
+                #s_flat = s.view(-1, self.action_space*self.action_space)
                 # get aux data
 
-                beta = self.beta_net(s_flat)
+                beta = self.beta_net(s)
                 beta = F.softmax(beta.detach(), dim=1)
                 beta = beta.data.cpu().numpy().reshape(self.action_space)
 
-                q = self.value_net(s_flat)
+                q = self.value_net(s)
                 q = q.data.cpu().numpy().reshape(self.action_space)
 
                 pi = beta.copy()
@@ -275,16 +274,16 @@ class GANAgent(Agent):
                 pi_mix = pi_mix / pi_mix.sum()
 
                 pi_explore = self.epsilon * self.pi_rand + (1 - self.epsilon) * pi_mix
-
-                a = np.random.choice(self.action_space, 1, p=pi_explore)
-                self.env.step(a)
+                pi_explore = np.expand_dims(pi_explore, axis=0)
+                #a = np.random.choice(self.action_space, 1, p=pi_explore)
+                self.env.step_policy(pi_explore)
 
                 states[-1].append(s)
                 ts[-1].append(self.env.t)
                 policies[-1].append(pi_mix)
                 rewards[-1].append(self.env.reward)
 
-                episode_format = np.array((self.frame, states[-1][-1].cpu().numpy(), a, rewards[-1][-1], ts[-1][-1],
+                episode_format = np.array((self.frame, states[-1][-1].cpu().numpy(), 0, rewards[-1][-1], ts[-1][-1],
                               policies[-1][-1], -1, episode_num), dtype=consts.rec_type)
 
                 episode.append(episode_format)
@@ -358,11 +357,11 @@ class GANAgent(Agent):
 #        for i in range(n_players):
  #           mp_env[i].reset()
 
-        for n in tqdm(itertools.count()):
+        for _ in tqdm(itertools.count()):
 
-            if not (n % self.load_memory_interval):
+            if not (self.frame % self.load_memory_interval):
                 try:
-                    aux = self.load_checkpoint(self.snapshot_path)
+                    self.load_checkpoint(self.snapshot_path)
                 except:
                     pass
 
@@ -370,19 +369,18 @@ class GANAgent(Agent):
                 self.value_net.eval()
 
             s = torch.cat([env.state.unsqueeze(0) for env in mp_env]).to(self.device)
-            s_flat = s.view(-1, self.action_space * self.action_space)
 
-            beta = self.beta_net(s_flat)
+            beta = self.beta_net(s)
             beta = F.softmax(beta.detach(), dim=1)
             beta = beta.data.cpu().numpy().reshape(-1,self.action_space)
 
-            q = self.value_net(s_flat)
+            q = self.value_net(s)
             q = q.data.cpu().numpy().reshape(-1,self.action_space)
 
             pi = beta.copy()
             q_temp = q.copy()
 
-            pi_greed = np.zeros((n_players, self.action_space))
+            pi_greed = np.zeros((n_players, self.action_space),dtype=np.float32)
             pi_greed[range(n_players), np.argmax(q_temp, axis=1)] = 1
             pi_mix = (1 - self.mix) * pi + self.mix * pi_greed
 
@@ -403,27 +401,26 @@ class GANAgent(Agent):
 
             pi_explore = self.epsilon * self.pi_rand + (1 - self.epsilon) * pi_mix
 
-            pi_explore = pi_explore.astype(np.float32)
+#            pi_explore = pi_explore.astype(np.float32)
+ #           pi_explore = np.expand_dims(pi_explore, axis=0)
 
             for i in range(n_players):
 
-                a = np.random.choice(self.action_space, 1, p=pi_explore[i])
+                #a = np.random.choice(self.action_space, 1, p=pi_explore[i])
 
                 env = mp_env[i]
 
-                env.step(a)
+                env.step_policy(np.expand_dims(pi_explore[i], axis=0))
 
                 rewards[i][-1].append(env.reward)
                 states[i][-1].append(s[i])
                 ts[i][-1].append(env.t)
                 policies[i][-1].append(pi_mix[i])
 
-                episode_format = np.array((self.frame, states[i][-1][-1].cpu().numpy(), a, rewards[i][-1][-1], ts[i][-1][-1],
+                episode_format = np.array((self.frame, states[i][-1][-1].cpu().numpy(), 0, rewards[i][-1][-1], ts[i][-1][-1],
                                            policies[i][-1][-1], -1, episode_num[i]), dtype=consts.rec_type)
 
                 episode[i].append(episode_format)
-
-                self.frame += 1
 
                 if (not env.k % self.save_to_mem) or env.t:
 

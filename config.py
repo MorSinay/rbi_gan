@@ -32,7 +32,7 @@ parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disables CUDA training')
 
 # Env Arguments
-parser.add_argument('--env-batch-size', type=int, default=64, metavar='N',
+parser.add_argument('--env-batch-size', type=int, default=32, metavar='N',
                     help='env batch size for training (default: 64)')
 parser.add_argument('--env-iterations', type=int, default=1, metavar='N',
                     help='number of env iterations (default: 1)')
@@ -125,7 +125,7 @@ class Consts(object):
     #TODO Mor: what is this?
     mem_threshold = int(5e9)
 
-    rec_type = np.dtype([('fr', np.int64), ('st', np.float32, (action_space,action_space)), ('a', np.int64),
+    rec_type = np.dtype([('fr', np.int64), ('st', np.float32, (1,action_space*action_space)), ('a', np.int64),
                          ('r', np.float32), ('t', np.int64), ('pi', np.float32, action_space), ('traj', np.int64),
                          ('ep', np.int64)])
 

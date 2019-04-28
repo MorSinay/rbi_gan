@@ -10,7 +10,8 @@ from tqdm import tqdm
 import time
 
 from config import consts, args, DirsAndLocksSingleton
-from gan_rl_agent import GANAgent
+from gan_rl_agent import GANAgent as GanActionAgent
+from gan_rl_policy_agent import GANAgent as GanPolicyAgent
 
 from logger import logger
 from distutils.dir_util import copy_tree
@@ -101,8 +102,13 @@ class Experiment(object):
             self.writer.close()
 
     def choose_agent(self):
-
-        return GANAgent
+        if args.algorithm == 'action':
+            return GanActionAgent
+        elif args.algorithm == 'policy':
+            return GanPolicyAgent
+        else:
+            print(args.algorithm)
+            raise ImportError
 
     def learn(self):
 
@@ -250,8 +256,8 @@ class Experiment(object):
         agent = self.choose_agent()(self.exp_name, player=True, checkpoint=self.checkpoint, choose=True)
         agent.clean()
 
-    def evaluate(self):
-        return
+  #  def evaluate(self):
+   #     return
         # uuid = "%012d" % np.random.randint(1e12)
         # agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint, choose=True)
         #
@@ -408,32 +414,45 @@ class Experiment(object):
         line += "|"
         logger.info(line)
 
-    def demonstrate(self, params=None):
-        return
-        # agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint)
-        #
-        # # load model
-        # try:
-        #     if params is not None:
-        #         aux = agent.resume(params)
-        #     elif self.load_last:
-        #         aux = agent.resume(self.checkpoint)
-        #     elif self.load_best:
-        #         aux = agent.resume(self.checkpoint_best)
-        #     else:
-        #         raise NotImplementedError
-        # except:  # when reading and writing collide
-        #     time.sleep(2)
-        #     if params is not None:
-        #         aux = agent.resume(params)
-        #     elif self.load_last:
-        #         aux = agent.resume(self.checkpoint)
-        #     elif self.load_best:
-        #         aux = agent.resume(self.checkpoint_best)
-        #     else:
-        #         raise NotImplementedError
-        #
-        # player = agent.demonstrate(128)
-        #
-        # for i, step in enumerate(player):
-        #     yield step
+    def evaluate(self, params=None):
+        agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint)
+
+        # load model
+        try:
+            if params is not None:
+                aux = agent.resume(params)
+            elif self.load_last:
+                aux = agent.resume(self.checkpoint)
+            elif self.load_best:
+                aux = agent.resume(self.checkpoint_best)
+            else:
+                raise NotImplementedError
+        except:  # when reading and writing collide
+            time.sleep(2)
+            if params is not None:
+                aux = agent.resume(params)
+            elif self.load_last:
+                aux = agent.resume(self.checkpoint)
+            elif self.load_best:
+                aux = agent.resume(self.checkpoint_best)
+            else:
+                raise NotImplementedError
+
+        player = agent.evaluate(128)
+
+        for n, train_results in tqdm(enumerate(player)):
+
+            print("print_evaluation_experiment")
+
+            # log to tensorboard
+            if args.tensorboard:
+                self.writer.add_scalar('evaluation/states/state', train_results['s'], n)
+                self.writer.add_scalar('evaluation/actions/reward', train_results['r'], n)
+                self.writer.add_histogram("evaluation/actions/a_player", train_results['a_player'], n, 'doane')
+
+                if hasattr(agent, "beta_net"):
+                    for name, param in agent.beta_net.named_parameters():
+                        self.writer.add_histogram("beta_net/%s" % name, param.clone().cpu().data.numpy(), n, 'fd')
+                if hasattr(agent, "value_net"):
+                    for name, param in agent.value_net.named_parameters():
+                        self.writer.add_histogram("value_net/%s" % name, param.clone().cpu().data.numpy(), n, 'fd')
