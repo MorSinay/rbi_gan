@@ -70,6 +70,7 @@ boolean_feature("postprocess", False, 'Postprocess evaluation results')
 boolean_feature("multiplay", False, 'Send samples to memory from multiple parallel players')
 boolean_feature("multiplay-random", False, 'Send random samples to memory from multiple parallel players')
 boolean_feature("evaluate", False, 'evaluate player')
+boolean_feature("evaluate-last-rl", False, 'evaluate last rl player')
 boolean_feature("evaluate-random-policy", False, 'evaluate random policy|action player')
 boolean_feature("clean", False, 'Clean old trajectories')
 #TODO Mor: True
@@ -83,7 +84,7 @@ parser.add_argument('--resume', type=int, default=-1, help='Resume experiment nu
 
 # #exploration parameters
 # parser.add_argument('--softmax-diff', type=float, default=3.8, metavar='β', help='Maximum softmax diff')
-parser.add_argument('--epsilon', type=float, default=0.00164, metavar='ε', help='exploration parameter before behavioral period')
+parser.add_argument('--epsilon', type=float, default=0.05, metavar='ε', help='exploration parameter before behavioral period')
 #
 # #dataloader
 parser.add_argument('--cpu-workers', type=int, default=48, help='How many CPUs will be used for the data loading')
@@ -100,17 +101,16 @@ parser.add_argument('--load-memory-interval', type=int, default=50, metavar='STE
 parser.add_argument('--replay-updates-interval', type=int, default=5000, metavar='STEPS', help='Number of training iterations between q-target updates')
 parser.add_argument('--replay-memory-size', type=int, default=2000000, help='Total replay exploit memory size')
 parser.add_argument('--gamma', type=float, default=0.97, metavar='LR', help='gamma (default: 0.97)')
-parser.add_argument('--cmin', type=float, default=0.1, metavar='c_min', help='Lower reroute threshold')
-parser.add_argument('--cmax', type=float, default=2, metavar='c_max', help='Upper reroute threshold')
+parser.add_argument('--cmin', type=float, default=0.9, metavar='c_min', help='Lower reroute threshold')
+parser.add_argument('--cmax', type=float, default=1.1, metavar='c_max', help='Upper reroute threshold')
 parser.add_argument('--delta', type=float, default=0.1, metavar='delta', help='Total variation constraint')
-parser.add_argument('--save-to-mem', type=int, default=500, metavar='stm', help='Save to memory')
+parser.add_argument('--save-to-mem', type=int, default=200, metavar='stm', help='Save to memory')
+parser.add_argument('--n-rand', type=int, default=10000, metavar='rnand', help='random play')
 
 #
 # #actors parameters
 parser.add_argument('--n-players', type=int, default=30, help='Number of parallel players for current actor')
 parser.add_argument('--actor-index', type=int, default=0, help='Index of current actor')
-parser.add_argument('--n-actors', type=int, default=1, help='Total number of parallel actors')
-
 
 # distributional learner
 
@@ -130,7 +130,7 @@ class Consts(object):
     mem_threshold = int(5e9)
 
     rec_type = np.dtype([('fr', np.int64), ('st', np.float32, (1,action_space*action_space)), ('a', np.int64),
-                         ('r', np.float32), ('acc', np.float32), ('t', np.int64), ('pi', np.float32, action_space),
+                         ('r', np.float32), ('acc', np.float32), ('t', np.float32), ('pi', np.float32, action_space),
                          ('traj', np.int64), ('ep', np.int64)])
 
     outdir = os.path.join(base_dir, 'results')

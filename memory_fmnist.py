@@ -20,19 +20,25 @@ class Memory(torch.utils.data.Dataset):
                                            download=True)
 
         y = [i[1] for i in mnist_data]
-        mnist_dict = {i: list() for i in range(10)}
+        mnist_dict = {i: list() for i in range(consts.action_space)}
         for i in range(len(y)):
             mnist_dict[y[i].item()].append(mnist_data[i])
 
         self.data_dict = mnist_dict
-        self.len = len(self.data_dict[0])
+        self.len = np.zeros(consts.action_space)
+        s_len = 1000
+        for i in range(consts.action_space):
+            self.len[i] = s_len
+            s_len += 500
+
+        #self.len = len(self.data_dict[0])
 
     def __len__(self):
-        return self.len
+        return self.len[0]
 
     def __getitem__(self, label):
         assert (label < 10), "assert sample in DummyGen"
-        i = random.randint(0, self.len-1)
+        i = random.randint(0, self.len[label]-1)
         return self.data_dict[label][i]
 
     def get_item(self, action_batch):

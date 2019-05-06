@@ -26,8 +26,12 @@ def main():
             exp.play()
 
         elif args.evaluate:
-            logger.info("Evaluate final performance")
+            logger.info("Evaluate performance")
             exp.evaluate()
+
+        elif args.evaluate_last_rl:
+            logger.info("Evaluate final performance")
+            exp.evaluate_last_rl()
 
         elif args.evaluate_random_policy:
             logger.info("Evaluate random policy performance")

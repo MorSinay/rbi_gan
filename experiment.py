@@ -183,8 +183,9 @@ class Experiment(object):
                     for name, param in agent.value_net.named_parameters():
                         self.writer.add_histogram("value_net/%s" % name, param.clone().cpu().data.numpy(), n + n_offset,
                                                   'fd')
-
-            self.print_actions_statistics(train_results['a_player'], avg_train_loss_beta, avg_train_loss_v_beta)
+            self.print_actions_statistics(train_results['pi'], train_results['pi_tag'] , train_results['beta'],
+                                          train_results['q'], train_results['a_player'], avg_train_loss_beta,
+                                          avg_train_loss_v_beta)
             agent.save_checkpoint(self.checkpoint, {'n': n + n_offset})
 
         print("End Learn")
@@ -267,7 +268,7 @@ class Experiment(object):
         agent = self.choose_agent()(self.exp_name, player=True, checkpoint=self.checkpoint, choose=True)
         agent.clean()
 
-    def print_actions_statistics(self, a_player, loss_q, loss_beta):
+    def print_actions_statistics(self, pi_player, pi_tag_player, beta_player, q_player, a_player, loss_q, loss_beta):
 
         # print action meanings
         logger.info("Actions statistics: \tloss_beta = %f |\t loss_q = %f |" % (loss_beta, loss_q))
@@ -278,11 +279,70 @@ class Experiment(object):
         line = ''
         line += "|\tPlayer actions\t"
         for a in applied_player_actions:
-            line += "|%.2f\t    " % (a*100)
+            line += "|%.2f\t" % (a*100)
         line += "|"
         logger.info(line)
 
-    def evaluate(self, params=None):
+        pi_tag = "|\tpolicy pi tag\t"
+        pi =     "|\tpolicy pi    \t"
+        beta =   "|\tpolicy beta  \t"
+        q =      "|\tvalue q      \t"
+        for i in range(consts.action_space):
+            pi_tag += "|%.2f\t" % pi_tag_player[i]
+            pi += "|%.2f\t" % pi_player[i]
+            beta += "|%.2f\t" % beta_player[i]
+            q += "|%.2f\t" % q_player[i]
+        pi += "|"
+        pi_tag += "|"
+        beta += "|"
+        q += "|"
+        logger.info(pi)
+        logger.info(pi_tag)
+        logger.info(beta)
+        logger.info(q)
+
+    def evaluate(self):
+        agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint)
+        player = agent.evaluate()
+
+        for n, train_results in tqdm(enumerate(player)):
+
+            frame = train_results['n']
+            print("print_evaluation_experiment - |n:{}\t|frame:{}\t|acc:{}\t|k:{}\t|".format(n, frame, train_results['acc'], train_results['k']))
+
+            # log to tensorboard
+            if args.tensorboard:
+
+                self.writer.add_scalar('evaluation/acc', train_results['acc'], frame)
+                self.writer.add_scalar('evaluation/k', train_results['k'], frame)
+                self.writer.add_histogram("evaluation/policy/pi", train_results['pi'], frame, 'doane')
+                self.writer.add_histogram("evaluation/policy/beta", train_results['beta'], frame, 'doane')
+                self.writer.add_histogram("evaluation/policy/value", train_results['q'], frame, 'doane')
+
+                if hasattr(agent, "beta_net"):
+                    for name, param in agent.beta_net.named_parameters():
+                        self.writer.add_histogram("evaluation/beta_net/%s" % name, param.clone().cpu().data.numpy(), frame, 'fd')
+                if hasattr(agent, "value_net"):
+                    for name, param in agent.value_net.named_parameters():
+                        self.writer.add_histogram("evaluation/value_net/%s" % name, param.clone().cpu().data.numpy(), frame, 'fd')
+
+            pi = "|\tpolicy pi\t"
+            beta = "|\tpolicy beta\t"
+            q = "|\tvalue q\t    "
+            for i in range(consts.action_space):
+                pi += "|%.2f\t" % train_results['pi'][i]
+                beta += "|%.2f\t" % train_results['beta'][i]
+                q += "|%.2f\t" % train_results['q'][i]
+            pi += "|"
+            beta += "|"
+            q += "|"
+            logger.info(pi)
+            logger.info(beta)
+            logger.info(q)
+
+        print("End evaluation")
+
+    def evaluate_last_rl(self, params=None):
         agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint)
 
         # load model
@@ -306,7 +366,7 @@ class Experiment(object):
             else:
                 raise NotImplementedError
 
-        player = agent.evaluate(1)
+        player = agent.evaluate_last_rl(1)
 
         for n, train_results in tqdm(enumerate(player)):
 

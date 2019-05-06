@@ -38,11 +38,11 @@ class Agent(object):
         #self.entropy_loss = float((1 - (1 / (1 + (self.action_space - 1) * np.exp(-args.softmax_diff)))) * (self.action_space / (self.action_space - 1)))
         self.batch = args.batch
         self.replay_memory_size = args.replay_memory_size
-        #self.n_actors = args.n_actors
         #self.actor_index = args.actor_index
         self.n_players = args.n_players
         #self.player = args.player
         self.n_tot = args.n_tot
+        self.n_rand = args.n_rand
         #self.max_length = consts.max_length[args.game]
         #self.max_score = consts.max_score[args.game]
         #self.start_time = consts.start_time
@@ -94,7 +94,7 @@ class Agent(object):
     def train(self, n_interval, n_tot):
         raise NotImplementedError
 
-    def evaluate(self, n_interval, n_tot):
+    def evaluate(self):
         raise NotImplementedError
 
     # def set_player(self, player, cmin=None, cmax=None, delta=None,
@@ -152,7 +152,7 @@ class Agent(object):
                         break
                 except:
                     pass
-
+        time.sleep(15)
         shutil.rmtree(self.explore_dir)
         shutil.rmtree(self.list_dir)
         #shutil.rmtree(self.root_dir)

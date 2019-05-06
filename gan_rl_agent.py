@@ -6,21 +6,18 @@ import numpy as np
 from tqdm import tqdm
 from torch.nn import functional as F
 import torch.nn as nn
-import sys
 
 from config import consts, args, lock_file, release_file
 import psutil
-#import socket
 
 from model import BehavioralNet, DuelNet
 
 from memory_gan import Memory, ReplayBatchSampler
 from agent import Agent
 from environment import Env
-#from preprocess import release_file, lock_file, get_mc_value, get_td_value, h_torch, hinv_torch, get_expected_value, get_tde
 import os
-#import time
-#import shutil
+import time
+
 import itertools
 mem_threshold = consts.mem_threshold
 
@@ -119,7 +116,6 @@ class GANAgent(Agent):
         return state['aux']
 
     def learn(self, n_interval, n_tot):
-
         self.save_checkpoint(self.snapshot_path, {'n': 0})
 
         self.beta_net.train()
@@ -127,7 +123,8 @@ class GANAgent(Agent):
         self.target_net.eval()
 
         results = {'n': [], 'loss_q': [], 'loss_beta': [], 'a_player': [], 'loss_std': [],
-                   'r': [], 's': [], 't': [], 'pi': [], 's_tag': [], 'pi_tag': [], 'acc': []}
+                   'r': [], 's': [], 't': [], 'pi': [], 's_tag': [], 'pi_tag': [], 'acc': [], 'beta': [],
+                   'q': []}
 
         for n, sample in tqdm(enumerate(self.train_loader)):
 
@@ -140,9 +137,9 @@ class GANAgent(Agent):
             s_tag = sample['s_tag'].to(self.device, non_blocking=True)
             pi_tag = sample['pi_tag'].to(self.device, non_blocking=True)
 
-
             # Behavioral nets
             beta = self.beta_net(s)
+            beta_policy = F.softmax(beta.detach(), dim=1) #debug
             beta_log = F.log_softmax(beta, dim=1)
             loss_beta = (-beta_log * pi).sum(dim=1).mean()
 
@@ -179,12 +176,13 @@ class GANAgent(Agent):
                 results['acc'].append(acc.data.cpu().numpy())
                 results['s_tag'].append(s_tag.data.cpu().numpy())
                 results['pi_tag'].append(pi_tag.data.cpu().numpy())
+                results['beta'].append(beta_policy.cpu().numpy())
+                results['q'].append(q.data.cpu().numpy())
 
                 # add results
                 results['loss_beta'].append(loss_beta.data.cpu().numpy())
                 results['loss_q'].append(loss_q.data.cpu().numpy())
                 results['loss_std'].append(0)
-                results['n'].append(n)
 
                 if not n % self.update_memory_interval:
                     # save agent state
@@ -199,10 +197,16 @@ class GANAgent(Agent):
                     results['r'] = np.concatenate(results['r'])
                     results['s'] = np.concatenate(results['s'])
                     results['t'] = np.concatenate(results['t'])
-                    results['pi'] = np.concatenate(results['pi'])
-                    results['acc'] = np.concatenate(results['acc'])
+                    #results['pi'] = np.concatenate(results['pi'])
+                    results['acc'] = np.average(np.concatenate(results['acc']))
                     results['s_tag'] = np.concatenate(results['s_tag'])
-                    results['pi_tag'] = np.concatenate(results['pi_tag'])
+                   # results['pi_tag'] = np.concatenate(results['pi_tag'])
+
+                    results['pi'] = np.average(np.concatenate(results['pi']), axis=0).flatten()
+                    results['pi_tag'] = np.average(np.concatenate(results['pi_tag']), axis=0).flatten()
+                    results['beta'] = np.average(np.concatenate(results['beta']), axis=0).flatten()
+                    results['q'] = np.average(np.concatenate(results['q']), axis=0).flatten()
+                    results['n'] = n
 
                     yield results
                     self.beta_net.train()
@@ -251,39 +255,38 @@ class GANAgent(Agent):
                     self.value_net.eval()
 
                 s = self.env.state.to(self.device)
-                #s_flat = s.view(-1, self.action_space*self.action_space)
-                # get aux data
+                
+                if self.n_offset <= self.n_rand:
+                    pi_explore = self.pi_rand
+                else:
+                    beta = self.beta_net(s)
+                    beta = F.softmax(beta.detach(), dim=1)
+                    beta = beta.data.cpu().numpy().reshape(self.action_space)
 
-                beta = self.beta_net(s)
-                beta = F.softmax(beta.detach(), dim=1)
-                beta = beta.data.cpu().numpy().reshape(self.action_space)
+                    q = self.value_net(s)
+                    q = q.data.cpu().numpy().reshape(self.action_space)
 
-                q = self.value_net(s)
-                q = q.data.cpu().numpy().reshape(self.action_space)
+                    pi = beta.copy()
+                    q_temp = q.copy()
 
-                pi = beta.copy()
-                q_temp = q.copy()
+                    pi_greed = np.zeros(self.action_space)
+                    pi_greed[np.argmax(q)] = 1
+                    pi_mix = (1 - self.mix) * pi + self.mix * pi_greed
 
-                pi_greed = np.zeros(self.action_space)
-                pi_greed[np.argmax(q)] = 1
-                pi_mix = (1 - self.mix) * pi + self.mix * pi_greed
+                    pi_mix = self.cmin * pi_mix
 
+                    delta = 1 - self.cmin
+                    while delta > 0:
+                        a = np.argmax(q_temp)
+                        delta_a = np.min((delta, (self.cmax - self.cmin) * beta[a]))
+                        delta -= delta_a
+                        pi_mix[a] += delta_a
+                        q_temp[a] = -1e11
 
-                pi_mix = self.cmin * pi_mix
+                    pi_mix = pi_mix.clip(0, 1)
+                    pi_mix = pi_mix / pi_mix.sum()
 
-                delta = 1 - self.cmin
-                while delta > 0:
-                    a = np.argmax(q_temp)
-                    delta_a = np.min((delta, (self.cmax - self.cmin) * beta[a]))
-                    delta -= delta_a
-                    pi_mix[a] += delta_a
-                    q_temp[a] = -1e11
-
-
-                pi_mix = pi_mix.clip(0, 1)
-                pi_mix = pi_mix / pi_mix.sum()
-
-                pi_explore = self.epsilon * self.pi_rand + (1 - self.epsilon) * pi_mix
+                    pi_explore = self.epsilon * self.pi_rand + (1 - self.epsilon) * pi_mix
 
                 a = np.random.choice(self.action_space, 1, p=pi_explore)
                 self.env.step(a)
@@ -369,7 +372,7 @@ class GANAgent(Agent):
 #        for i in range(n_players):
  #           mp_env[i].reset()
 
-        for _ in tqdm(itertools.count()):
+        for self.frame in tqdm(itertools.count()):
 
             if not (self.frame % self.load_memory_interval):
                 try:
@@ -382,37 +385,39 @@ class GANAgent(Agent):
 
             s = torch.cat([env.state.unsqueeze(0) for env in mp_env]).to(self.device)
 
-            beta = self.beta_net(s)
-            beta = F.softmax(beta.detach(), dim=1)
-            beta = beta.data.cpu().numpy().reshape(-1,self.action_space)
+            if self.n_offset <= self.n_rand:
+                pi_explore = np.repeat(self.pi_rand, n_players, axis=0).reshape(n_players,self.action_space)
+                pi = pi_explore
+            else:
+                beta = self.beta_net(s)
+                beta = F.softmax(beta.detach(), dim=1)
+                beta = beta.data.cpu().numpy().reshape(-1,self.action_space)
 
-            q = self.value_net(s)
-            q = q.data.cpu().numpy().reshape(-1,self.action_space)
+                q = self.value_net(s)
+                q = q.data.cpu().numpy().reshape(-1,self.action_space)
 
-            pi = beta.copy()
-            q_temp = q.copy()
+                pi = beta.copy()
+                q_temp = q.copy()
 
-            pi_greed = np.zeros((n_players, self.action_space),dtype=np.float32)
-            pi_greed[range(n_players), np.argmax(q_temp, axis=1)] = 1
-            pi_mix = (1 - self.mix) * pi + self.mix * pi_greed
+                pi = (1 - self.epsilon) * pi + self.epsilon / self.action_space
+                pi = self.cmin * pi
 
-            pi_mix = self.cmin * pi_mix
+                rank = np.argsort(q_temp, axis=1)
 
-            rank = np.argsort(q_temp, axis=1)
+                delta = np.ones(n_players) - self.cmin
+                for i in range(self.action_space):
+                    a = rank[:, self.action_space - 1 - i]
+                    delta_a = np.minimum(delta, (self.cmax - self.cmin) * beta[range_players, a])
+                    delta -= delta_a
+                    pi[range_players, a] += delta_a
 
-            delta = np.ones(n_players) - self.cmin
-            for i in range(self.action_space):
-                a = rank[:, self.action_space - 1 - i]
-                delta_a = np.minimum(delta, (self.cmax - self.cmin) * beta[range_players, a])
-                delta -= delta_a
-                pi[range_players, a] += delta_a
+                pi_greed = np.zeros((n_players, self.action_space), dtype=np.float32)
+                pi_greed[range(n_players), np.argmax(q_temp, axis=1)] = 1
+                pi = (1 - self.mix) * pi + self.mix * pi_greed
+                pi = pi.clip(0, 1)
+                pi = pi / np.repeat(pi.sum(axis=1, keepdims=True), self.action_space, axis=1)
 
-
-            pi_mix = pi_mix.clip(0, 1)
-            pi_mix = pi_mix / np.repeat(pi_mix.sum(axis=1, keepdims=True), self.action_space, axis=1)
-
-            pi_explore = self.epsilon * self.pi_rand + (1 - self.epsilon) * pi_mix
-
+                pi_explore = self.epsilon * self.pi_rand + (1 - self.epsilon) * pi
 
             for i in range(n_players):
 
@@ -426,7 +431,7 @@ class GANAgent(Agent):
                 accs[i][-1].append(env.acc)
                 states[i][-1].append(s[i])
                 ts[i][-1].append(env.t)
-                policies[i][-1].append(pi_mix[i])
+                policies[i][-1].append(pi[i])
 
                 episode_format = np.array((self.frame, states[i][-1][-1].cpu().numpy(), a, rewards[i][-1][-1], accs[i][-1][-1],
                                            ts[i][-1][-1], policies[i][-1][-1], -1, episode_num[i]), dtype=consts.rec_type)
@@ -475,7 +480,6 @@ class GANAgent(Agent):
 
                         env.reset()
 
-            self.frame += 1
             if not self.frame % self.player_replay_size:
                 yield True
                 if self.n_offset >= self.n_tot:
@@ -487,9 +491,101 @@ class GANAgent(Agent):
     def train(self, n_interval, n_tot):
         return
 
-    def evaluate(self, n_tot):
+    def evaluate(self):
 
-        self.load_checkpoint(self.snapshot_path)
+        #time.sleep(15)
+
+        try:
+            self.load_checkpoint(self.snapshot_path)
+        except:
+            print("Error in load checkpoint")
+            pass
+
+        results = {'n': [], 'pi': [], 'beta': [], 'q': [], 'acc': [], 'k': []}
+
+        #for _ in tqdm(itertools.count()):
+        for _ in itertools.count():
+
+            try:
+                self.load_checkpoint(self.snapshot_path)
+            except:
+                print("Error in load checkpoint")
+                continue
+
+            if self.n_offset >= args.n_tot:
+                break
+
+            self.env.reset()
+            self.beta_net.eval()
+            self.value_net.eval()
+
+            for _ in tqdm(itertools.count()):
+
+            #while not self.env.t:
+                s = self.env.state.to(self.device)
+
+                beta = self.beta_net(s)
+                beta = F.softmax(beta.detach(), dim=1)
+                beta = beta.data.cpu().numpy().reshape(self.action_space)
+
+                q = self.value_net(s)
+                q = q.data.cpu().numpy().reshape(self.action_space)
+
+                if self.n_offset <= self.n_rand:
+                    pi = self.pi_rand
+                else:
+                    pi = beta.copy()
+                    q_temp = q.copy()
+
+                    pi = (1 - self.epsilon) * pi + self.epsilon * self.pi_rand
+
+                    pi = self.cmin * pi
+
+                    delta = 1 - self.cmin
+                    while delta > 0:
+                        a = np.argmax(q_temp)
+                        delta_a = np.min((delta, (self.cmax - self.cmin) * beta[a]))
+                        delta -= delta_a
+                        pi[a] += delta_a
+                        q_temp[a] = -1e11
+
+                    pi_greed = np.zeros(self.action_space)
+                    pi_greed[np.argmax(q)] = 1
+                    pi = (1-self.mix) * pi + self.mix * pi_greed
+                    pi = pi.clip(0, 1)
+                    pi = pi / pi.sum()
+
+                a = np.random.choice(self.action_space, 1, p=pi)
+                self.env.step(a)
+
+                results['pi'].append(pi)
+                results['beta'].append(beta)
+                results['q'].append(q)
+
+                if self.env.t:
+                    break
+
+            if self.env.t:
+                results['pi'] = np.average(np.asarray(results['pi']), axis=0).flatten()
+                results['beta'] = np.average(np.asarray(results['beta']), axis=0).flatten()
+                results['q'] = np.average(np.asarray(results['q']), axis=0).flatten()
+
+                results['n'] = self.n_offset
+                results['k'] = self.env.k
+                results['acc'] = self.env.acc
+
+                yield results
+                results = {key: [] for key in results}
+                self.env.reset()
+
+
+    def evaluate_last_rl(self, n_tot):
+
+        try:
+            self.load_checkpoint(self.snapshot_path)
+        except:
+            print("Error in load checkpoint")
+            assert False, "evaluate_last_rl - Error in load checkpoint"
 
         self.env.reset()
         results = {'n': [], 'a_player': [], 'r': [], 's': [], 't': [], 'pi': [], 'acc': []}
@@ -511,33 +607,32 @@ class GANAgent(Agent):
                 pi = beta.copy()
                 q_temp = q.copy()
 
-                pi_greed = np.zeros(self.action_space)
-                pi_greed[np.argmax(q)] = 1
-                pi_mix = (1 - self.mix) * pi + self.mix * pi_greed
+                pi = (1 - self.epsilon) * pi + self.epsilon * self.pi_rand
 
-
-                pi_mix = self.cmin * pi_mix
+                pi = self.cmin * pi
 
                 delta = 1 - self.cmin
                 while delta > 0:
                     a = np.argmax(q_temp)
                     delta_a = np.min((delta, (self.cmax - self.cmin) * beta[a]))
                     delta -= delta_a
-                    pi_mix[a] += delta_a
+                    pi[a] += delta_a
                     q_temp[a] = -1e11
 
+                pi_greed = np.zeros(self.action_space)
+                pi_greed[np.argmax(q)] = 1
+                pi = (1-self.mix) * pi + self.mix * pi_greed
+                pi = pi.clip(0, 1)
+                pi = pi / pi.sum()
 
-                pi_mix = pi_mix.clip(0, 1)
-                pi_mix = pi_mix / pi_mix.sum()
-
-                a = np.random.choice(self.action_space, 1, p=pi_mix)
+                a = np.random.choice(self.action_space, 1, p=pi)
                 self.env.step(a)
 
                 results['a_player'].append(a)
                 results['r'].append(self.env.reward)
                 results['s'].append(s.data.cpu().numpy())
                 results['t'].append(self.env.t)
-                results['pi'].append(pi_mix)
+                results['pi'].append(pi)
                 results['n'].append(self.frame)
                 results['acc'].append(self.env.acc)
 

@@ -66,14 +66,14 @@ class ReplayBatchSampler(object):
             np.save(fread, [])
             release_file(fread)
             # if flag:
-            #traj_sorted = list(range(1000))
+            #traj_sorted = list(range(500))
             #
             if not len(traj_sorted):
                 #print("traj_sorted empty")
                 #time.sleep(5)
             #     if flag:
             #         break
-            #    traj_sorted = list(range(1000))
+                #traj_sorted = list(range(1000))
                 continue
 
             replay = np.concatenate([np.load(os.path.join(self.trajectory_dir, "%d.npy" % traj)) for traj in traj_sorted], axis=0)

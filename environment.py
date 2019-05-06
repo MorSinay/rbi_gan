@@ -72,7 +72,7 @@ class Env(object):
             self.acc = next_acc
             self.k += 1
 
-            if self.k >= self.max_k:# or self.acc >= 0.85:
+            if self.k >= self.max_k or self.acc >= 0.9:
                 self.t = 1
 
     def step(self, a):
@@ -99,7 +99,7 @@ class Env(object):
             self.acc = next_acc
             self.k += 1
 
-            if self.k >= self.max_k or self.acc >= 0.85:
+            if self.k >= self.max_k or self.acc >= 0.89:
                 # TODO: is it right?
                 self.t = 1
 
@@ -176,13 +176,20 @@ class Model():
             pred = output.max(1, keepdim=True)[1]  # get the index of the max log-probability
             cm = confusion_matrix(target.view_as(pred), pred, labels=range(self.outputs))
 
+            data, target = next(iter(self.test_loader))
+            data, target = data.to(self.device), target.to(self.device)
+            output = self.model(data)
+            test_loss += F.nll_loss(output, target, size_average=False).item()  # sum up batch loss
+            pred = output.max(1, keepdim=True)[1]  # get the index of the max log-probability
+            cm += confusion_matrix(target.view_as(pred), pred, labels=range(self.outputs))
+
         #test_loss /= len(self.test_loader.dataset)
         #print('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         #    test_loss, correct, len(self.test_loader.dataset),
         #    100. * correct / len(self.test_loader.dataset)))
 
         #TODO Mor - looks
-        cm = cm / self.test_loader_batch
+        cm = cm / (2*self.test_loader_batch)
         return cm
 
 
