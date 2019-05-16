@@ -8,13 +8,14 @@ import fcntl
 
 parser = argparse.ArgumentParser(description='gan_rl')
 username = pwd.getpwuid(os.geteuid()).pw_name
+server = socket.gethostname()
 
-if "gpu" in socket.gethostname():
-    base_dir = os.path.join('/home/mlspeech/', username, 'data/gan_rl')
+if "gpu" in server:
+    base_dir = os.path.join('/home/mlspeech/', username, 'data/gan_rl', server)
 elif "root" == username:
     base_dir = r'/workspace/data/gan_rl/'
 else:
-    base_dir = os.path.join('/data/', username, 'gan_rl')
+    base_dir = os.path.join('/data/', username, 'gan_rl', server)
 
 
 def boolean_feature(feature, default, help):
@@ -36,6 +37,8 @@ parser.add_argument('--env-batch-size', type=int, default=32, metavar='N',
                     help='env batch size for training (default: 64)')
 parser.add_argument('--env-max-k', type=int, default=6000, metavar='N',
                     help='env game length (default: 6000)')
+parser.add_argument('--env-max-acc', type=float, default=0.89, metavar='N',
+                    help='env max acc per game (default: 0.89)')
 parser.add_argument('--env-iterations', type=int, default=1, metavar='N',
                     help='number of env iterations (default: 1)')
 
@@ -59,6 +62,8 @@ parser.add_argument('--batch', type=int, default=64, help='Mini-Batch Size')
 parser.add_argument('--game', type=str, default='active', help='active | generate')
 parser.add_argument('--identifier', type=str, default='debug', help='The name of the model to use')
 parser.add_argument('--algorithm', type=str, default='action', help='[action|policy]')
+parser.add_argument('--reward', type=str, default='acc', help='[acc|f1|label0]')
+parser.add_argument('--benchmark', type=str, default='fmnist', help='[fmnist|cifar10]')
 #parser.add_argument('--base-dir', type=str, default=base_dir, help='Base directory for Logs and results')
 
 # # booleans
@@ -120,6 +125,7 @@ args = parser.parse_args()
 # consts
 class Consts(object):
 
+    server = socket.gethostname()
     start_time = time.time()
     exptime = time.strftime("%Y%m%d_%H%M%S", time.localtime())
 
@@ -134,10 +140,10 @@ class Consts(object):
                          ('traj', np.int64), ('ep', np.int64)])
 
     outdir = os.path.join(base_dir, 'results')
-    indir = os.path.join('/dev/shm/', username, 'gan_rl')
+    indir = os.path.join('/dev/shm/', username, 'gan_rl',server)
     logdir = os.path.join(base_dir, 'logs')
-    modeldir = os.path.join(indir, 'model')
-    rawdata = os.path.join('/dev/shm/', username, 'fmnist')
+    modeldir = os.path.join('/dev/shm/', username, 'gan_rl', 'model', args.benchmark)
+    rawdata = os.path.join('/dev/shm/', username, args.benchmark)
 
     if not os.path.exists(logdir):
         os.makedirs(logdir)

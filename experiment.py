@@ -1,4 +1,4 @@
-#import time
+import time
 import os
 import sys
 import numpy as np
@@ -141,7 +141,7 @@ class Experiment(object):
             print("wait for first samples")
 
 
-            if len(os.listdir(self.dirs_locks.trajectory_dir)) > 0:
+            if len(os.listdir(self.dirs_locks.trajectory_dir)) > 64:
                 hold = 0
 
             time.sleep(5)
@@ -172,7 +172,7 @@ class Experiment(object):
                 self.writer.add_scalar('train_loss/loss_std', float(avg_train_loss_std), n + n_offset)
 
                 #self.writer.add_scalar('states/state', train_results['s'], n)
-                self.writer.add_scalar('actions/reward', train_results['r'][-1], n)
+                self.writer.add_scalar('actions/reward', train_results['r'].mean(), n)
                 self.writer.add_histogram("actions/a_player", train_results['a_player'], n + n_offset, 'doane')
 
                 if hasattr(agent, "beta_net"):
@@ -190,6 +190,11 @@ class Experiment(object):
 
         print("End Learn")
         return agent
+
+    def probability_to_hist(self, prob):
+        hist = [int(prob[i] * 100) * [i] for i in range(len(prob))]
+        hist = [x for action in hist for x in action]
+        return np.asarray(hist)
 
     def get_player(self, agent):
         return
@@ -302,22 +307,35 @@ class Experiment(object):
         logger.info(q)
 
     def evaluate(self):
+        time.sleep(15)
+
         agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint)
         player = agent.evaluate()
 
         for n, train_results in tqdm(enumerate(player)):
 
             frame = train_results['n']
-            print("print_evaluation_experiment - |n:{}\t|frame:{}\t|acc:{}\t|k:{}\t|".format(n, frame, train_results['acc'], train_results['k']))
+            print("print_evaluation_experiment - |n:{}\t|frame:{}\t|acc:{}\t|k:{}\t|".format(
+                n, frame, train_results['acc'][-1], train_results['k']))
 
             # log to tensorboard
             if args.tensorboard:
 
-                self.writer.add_scalar('evaluation/acc', train_results['acc'], frame)
                 self.writer.add_scalar('evaluation/k', train_results['k'], frame)
-                self.writer.add_histogram("evaluation/policy/pi", train_results['pi'], frame, 'doane')
-                self.writer.add_histogram("evaluation/policy/beta", train_results['beta'], frame, 'doane')
-                self.writer.add_histogram("evaluation/policy/value", train_results['q'], frame, 'doane')
+                self.writer.add_scalar('evaluation/acc', train_results['acc'][-1], frame)
+
+                game_str = 'evaluation_game_'+str(n)+'_frame_'+str(frame)
+                for i in range(len(train_results['pi'])):
+                    self.writer.add_scalar(game_str + '/pi', train_results['pi'][i], i)
+                    self.writer.add_scalar(game_str + '/beta', train_results['beta'][i], i)
+                    self.writer.add_scalar(game_str + '/value', train_results['q'][i], i)
+
+                for i in range(len(train_results['acc'])):
+                    self.writer.add_scalar(game_str + '/acc', train_results['acc'][i], i)
+
+                # self.writer.add_histogram("policy/pi", self.probability_to_hist(train_results['pi']), frame, 'doane')
+                # self.writer.add_histogram("policy/beta", self.probability_to_hist(train_results['beta']), frame, 'doane')
+                # self.writer.add_histogram("policy/value", self.probability_to_hist(train_results['q']), frame, 'doane')
 
                 if hasattr(agent, "beta_net"):
                     for name, param in agent.beta_net.named_parameters():

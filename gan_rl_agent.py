@@ -26,7 +26,16 @@ class GANAgent(Agent):
 
     def __init__(self, exp_name, player=False, choose=False, checkpoint=None):
 
-        print("Learning ACTION method with GANAgent")
+        if args.reward == 'acc':
+            reward_str = 'ACCURACY'
+        elif args.reward == 'f1':
+            reward_str = "F1"
+        elif args.reward == 'label0':
+            reward_str = "LABEL 0"
+        else:
+            assert False, "error in reward"
+        print("Learning ACTION method ussing {} with GANAgent".format(reward_str))
+
         super(GANAgent, self).__init__(exp_name, checkpoint)
 
         use_cuda = not args.no_cuda and torch.cuda.is_available()
@@ -49,6 +58,11 @@ class GANAgent(Agent):
         self.pi_rand = np.ones(self.action_space, dtype=np.float32) / self.action_space
         self.q_loss = nn.SmoothL1Loss(reduction='none')
         self.kl_loss = nn.KLDivLoss()
+
+        if args.reward == 'acc':
+            self.acc_reward = True
+        else:
+            self.acc_reward = False
 
         if player:
             # play variables
@@ -561,6 +575,7 @@ class GANAgent(Agent):
                 results['pi'].append(pi)
                 results['beta'].append(beta)
                 results['q'].append(q)
+                results['acc'].append(self.env.acc)
 
                 if self.env.t:
                     break
@@ -569,10 +584,11 @@ class GANAgent(Agent):
                 results['pi'] = np.average(np.asarray(results['pi']), axis=0).flatten()
                 results['beta'] = np.average(np.asarray(results['beta']), axis=0).flatten()
                 results['q'] = np.average(np.asarray(results['q']), axis=0).flatten()
+                results['acc'] = np.asarray(results['acc'])
 
                 results['n'] = self.n_offset
                 results['k'] = self.env.k
-                results['acc'] = self.env.acc
+                #results['acc'] = self.env.acc
 
                 yield results
                 results = {key: [] for key in results}
@@ -629,6 +645,7 @@ class GANAgent(Agent):
                 self.env.step(a)
 
                 results['a_player'].append(a)
+
                 results['r'].append(self.env.reward)
                 results['s'].append(s.data.cpu().numpy())
                 results['t'].append(self.env.t)

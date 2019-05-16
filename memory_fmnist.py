@@ -7,29 +7,39 @@ from config import consts, args, DirsAndLocksSingleton, lock_file, release_file
 
 class Memory(torch.utils.data.Dataset):
 
-    def __init__(self):
+    def __init__(self, benchmark):
         super(Memory, self).__init__()
-        transform = transforms.Compose([transforms.ToTensor(),
-                                        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
 
-        rawdata = os.path.join('/dev/shm/', 'elkayam', 'fmnist')
+        if benchmark == 'fmnist':
+            transform = transforms.Compose([transforms.ToTensor(),
+                                            transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
 
-        mnist_data = datasets.FashionMNIST(root=rawdata,
-                                           train=True,
-                                           transform=transform,
-                                           download=True)
+            rawdata = os.path.join('/dev/shm/', 'elkayam', 'fmnist')
 
-        y = [i[1] for i in mnist_data]
-        mnist_dict = {i: list() for i in range(consts.action_space)}
+            data_set = datasets.FashionMNIST(root=rawdata, train=True, transform=transform, download=False)
+
+        elif benchmark == 'cifar10':
+            transform = transforms.Compose([transforms.ToTensor(),
+                                            transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.247, 0.243, 0.261))])
+
+            rawdata = os.path.join('/dev/shm/', 'elkayam', 'cifar10')
+
+            data_set = datasets.CIFAR10(root=rawdata, train=True, transform=transform, download=False)
+        else:
+            assert False, "no valid benchmark"
+
+        y = [i[1] for i in data_set]
+        data_dict = {i: list() for i in range(consts.action_space)}
         for i in range(len(y)):
-            mnist_dict[y[i].item()].append(mnist_data[i])
+            data_dict[y[i].item()].append(data_set[i])
 
-        self.data_dict = mnist_dict
+        self.data_dict = data_dict
         self.len = np.zeros(consts.action_space)
-        s_len = 1000
+        #s_len = 100
         for i in range(consts.action_space):
-            self.len[i] = s_len
-            s_len += 500
+            self.len[i] = len(self.data_dict[i])
+            #self.len[i] = s_len
+            #s_len += 50
 
         #self.len = len(self.data_dict[0])
 
@@ -37,12 +47,12 @@ class Memory(torch.utils.data.Dataset):
         return self.len[0]
 
     def __getitem__(self, label):
-        assert (label < 10), "assert sample in DummyGen"
+        assert (label < consts.action_space), "assert sample in DummyGen"
         i = random.randint(0, self.len[label]-1)
         return self.data_dict[label][i]
 
     def get_item(self, action_batch):
-        assert (action_batch.max() < 10), "assert sample in DummyGen"
+        assert (action_batch.max() < consts.action_space), "assert sample in DummyGen"
 
         gen_pic = list()
         for i in range(len(action_batch)):
@@ -62,8 +72,8 @@ class Singleton(type):
 
 
 class Singleton_Mem(metaclass=Singleton):
-    def __init__(self):
-        self.memory = Memory()
+    def __init__(self, benchmark):
+        self.memory = Memory(benchmark)
 
     def get_item(self,action_batch):
 

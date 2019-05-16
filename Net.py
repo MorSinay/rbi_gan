@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class Net(nn.Module):
-    def __init__(self, output=10):
+    def __init__(self, output):
         super(Net, self).__init__()
         self.fc1 = nn.Linear(784, 256)
         self.fc2 = nn.Linear(256, 128)

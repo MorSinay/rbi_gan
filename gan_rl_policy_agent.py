@@ -6,21 +6,18 @@ import numpy as np
 from tqdm import tqdm
 from torch.nn import functional as F
 import torch.nn as nn
-import sys
 
 from config import consts, args, lock_file, release_file
 import psutil
-#import socket
 
 from model import BehavioralNet, DuelNet
 
 from memory_gan import Memory, ReplayBatchSampler
 from agent import Agent
 from environment import Env
-# from preprocess import release_file, lock_file, get_mc_value, get_td_value, h_torch, hinv_torch, get_expected_value, get_tde
 import os
 import time
-#import shutil
+
 import itertools
 mem_threshold = consts.mem_threshold
 
@@ -28,8 +25,15 @@ mem_threshold = consts.mem_threshold
 class GANAgent(Agent):
 
     def __init__(self, exp_name, player=False, choose=False, checkpoint=None):
-
-        print("Learning POLICY method with GANAgent")
+        if args.reward == 'acc':
+            reward_str = 'ACCURACY'
+        elif args.reward == 'f1':
+            reward_str = "F1"
+        elif args.reward == 'label0':
+            reward_str = "LABEL 0"
+        else:
+            assert False, "error in reward"
+        print("Learning POLICY method ussing {} with GANAgent".format(reward_str))
         super(GANAgent, self).__init__(exp_name, checkpoint)
 
         use_cuda = not args.no_cuda and torch.cuda.is_available()
@@ -52,6 +56,11 @@ class GANAgent(Agent):
         self.pi_rand = np.ones(self.action_space, dtype=np.float32) / self.action_space
         self.q_loss = nn.SmoothL1Loss(reduction='none')
         self.kl_loss = nn.KLDivLoss()
+
+        if args.reward == 'acc':
+            self.acc_reward = True
+        else:
+            self.acc_reward = False
 
         if player:
             # play variables
@@ -118,9 +127,7 @@ class GANAgent(Agent):
 
         return state['aux']
 
-
     def learn(self, n_interval, n_tot):
-
         self.save_checkpoint(self.snapshot_path, {'n': 0})
 
         self.beta_net.train()
@@ -256,9 +263,10 @@ class GANAgent(Agent):
                     self.value_net.eval()
 
                 s = self.env.state.to(self.device)
-
+                
                 if self.n_offset <= self.n_rand:
                     pi_explore = self.pi_rand
+                    pi_mix = pi_explore
                 else:
                     beta = self.beta_net(s)
                     beta = F.softmax(beta.detach(), dim=1)
@@ -274,7 +282,6 @@ class GANAgent(Agent):
                     pi_greed[np.argmax(q)] = 1
                     pi_mix = (1 - self.mix) * pi + self.mix * pi_greed
 
-
                     pi_mix = self.cmin * pi_mix
 
                     delta = 1 - self.cmin
@@ -284,7 +291,6 @@ class GANAgent(Agent):
                         delta -= delta_a
                         pi_mix[a] += delta_a
                         q_temp[a] = -1e11
-
 
                     pi_mix = pi_mix.clip(0, 1)
                     pi_mix = pi_mix / pi_mix.sum()
@@ -427,7 +433,6 @@ class GANAgent(Agent):
                 env = mp_env[i]
 
                 env.step_policy(np.expand_dims(pi_explore[i], axis=0))
-
                 rewards[i][-1].append(env.reward)
                 accs[i][-1].append(env.acc)
                 states[i][-1].append(s[i])
@@ -562,6 +567,7 @@ class GANAgent(Agent):
                 results['pi'].append(pi)
                 results['beta'].append(beta)
                 results['q'].append(q)
+                results['acc'].append(self.env.acc)
 
                 if self.env.t:
                     break
@@ -570,10 +576,11 @@ class GANAgent(Agent):
                 results['pi'] = np.average(np.asarray(results['pi']), axis=0).flatten()
                 results['beta'] = np.average(np.asarray(results['beta']), axis=0).flatten()
                 results['q'] = np.average(np.asarray(results['q']), axis=0).flatten()
+                results['acc'] = np.asarray(results['acc'])
 
                 results['n'] = self.n_offset
                 results['k'] = self.env.k
-                results['acc'] = self.env.acc
+                #results['acc'] = self.env.acc
 
                 yield results
                 results = {key: [] for key in results}
@@ -727,7 +734,6 @@ class GANAgent(Agent):
                 env = mp_env[i]
 
                 env.step_policy(np.expand_dims(self.pi_rand, axis=0))
-
                 rewards[i][-1].append(env.reward)
                 accs[i][-1].append(env.acc)
                 states[i][-1].append(s[i])
