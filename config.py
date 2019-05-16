@@ -90,6 +90,7 @@ parser.add_argument('--resume', type=int, default=-1, help='Resume experiment nu
 # #exploration parameters
 # parser.add_argument('--softmax-diff', type=float, default=3.8, metavar='β', help='Maximum softmax diff')
 parser.add_argument('--epsilon', type=float, default=0.05, metavar='ε', help='exploration parameter before behavioral period')
+parser.add_argument('--eta', type=float, default=0.001, metavar='ε', help='exploration parameter before behavioral period')
 #
 # #dataloader
 parser.add_argument('--cpu-workers', type=int, default=48, help='How many CPUs will be used for the data loading')

@@ -27,6 +27,7 @@ class Agent(object):
         #self.history_length= args.history_length
         #self.random_initialization = args.random_initialization
         self.epsilon = float(args.epsilon * self.action_space / (self.action_space - 1))
+        self.eta = args.eta
         self.delta = args.delta
         self.player = player
         #self.priority_beta = args.priority_beta

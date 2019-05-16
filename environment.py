@@ -31,11 +31,17 @@ class Env(object):
         self.max_k = args.env_max_k
         self.max_acc = args.env_max_acc
         self.reward_metric = args.reward
+
+        if args.evaluate:
+            self.test_func = self.model.test
+        else:
+            self.test_func = self.model.test_only_one_batch
+
         self.reset()
 
     def reset(self):
         self.model.load_model()
-        cm, self.f1 = self.model.test_only_one_batch()
+        cm, self.f1 = self.test_func()
 
         if self.reward_metric == 'label0':
             self.acc = cm[0][0] / cm.sum(axis=1)[0]
@@ -60,7 +66,7 @@ class Env(object):
 
             # TODO: need to check about the option to save all the test on a GPU
             # TODO: maybe save a GPU to tun only the test
-            new_state, next_f1 = self.model.test_only_one_batch()
+            new_state, next_f1 = self.test_func()
 
             if self.reward_metric == 'label0':
                 next_acc = new_state[0][0] / new_state.sum(axis=1)[0]
@@ -92,7 +98,7 @@ class Env(object):
 
             # TODO: need to check about the option to save all the test on a GPU
             # TODO: maybe save a GPU to tun only the test
-            new_state, next_f1 = self.model.test_only_one_batch()
+            new_state, next_f1 = self.test_func()
 
             if self.reward_metric == 'label0':
                 next_acc = new_state[0][0] / new_state.sum(axis=1)[0]
@@ -176,7 +182,6 @@ class Model():
         cm = confusion_matrix(target_list, pred_list, labels=range(self.outputs))
         f1 = f1_score(target_list,pred_list, labels=range(self.outputs), average='macro')
         return cm/cm.sum(),f1
-
 
     def test_only_one_batch(self):
         self.model.eval()

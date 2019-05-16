@@ -227,132 +227,6 @@ class GANAgent(Agent):
 
         print("Learn Finish")
 
-    def play(self, n_tot):
-        # set initial episodes number
-        # lock read
-        fwrite = lock_file(self.episodelock)
-        current_num = np.load(fwrite).item()
-        episode_num = current_num
-        fwrite.seek(0)
-        np.save(fwrite, current_num + 1)
-        release_file(fwrite)
-
-        for i in range(n_tot):
-
-            self.env.reset()
-            episode = []
-            trajectory = []
-            rewards = [[]]
-            acc = [[]]
-            states = [[]]
-            ts = [[]]
-            policies = [[]]
-
-            self.beta_net.eval()
-            self.value_net.eval()
-
-            while not self.env.t:
-
-                if not (self.frame % self.load_memory_interval):
-                    try:
-                        self.load_checkpoint(self.snapshot_path)
-                    except:
-                        pass
-
-                    self.beta_net.eval()
-                    self.value_net.eval()
-
-                s = self.env.state.to(self.device)
-                
-                if self.n_offset <= self.n_rand:
-                    pi_explore = self.pi_rand
-                    pi_mix = pi_explore
-                else:
-                    beta = self.beta_net(s)
-                    beta = F.softmax(beta.detach(), dim=1)
-                    beta = beta.data.cpu().numpy().reshape(self.action_space)
-
-                    q = self.value_net(s)
-                    q = q.data.cpu().numpy().reshape(self.action_space)
-
-                    pi = beta.copy()
-                    q_temp = q.copy()
-
-                    pi_greed = np.zeros(self.action_space)
-                    pi_greed[np.argmax(q)] = 1
-                    pi_mix = (1 - self.mix) * pi + self.mix * pi_greed
-
-                    pi_mix = self.cmin * pi_mix
-
-                    delta = 1 - self.cmin
-                    while delta > 0:
-                        a = np.argmax(q_temp)
-                        delta_a = np.min((delta, (self.cmax - self.cmin) * beta[a]))
-                        delta -= delta_a
-                        pi_mix[a] += delta_a
-                        q_temp[a] = -1e11
-
-                    pi_mix = pi_mix.clip(0, 1)
-                    pi_mix = pi_mix / pi_mix.sum()
-
-                    pi_explore = self.epsilon * self.pi_rand + (1 - self.epsilon) * pi_mix
-
-                pi_explore = np.expand_dims(pi_explore, axis=0)
-                self.env.step_policy(pi_explore)
-
-                states[-1].append(s)
-                ts[-1].append(self.env.t)
-                policies[-1].append(pi_mix)
-                rewards[-1].append(self.env.reward)
-                acc[-1].append(self.env.acc)
-
-                episode_format = np.array((self.frame, states[-1][-1].cpu().numpy(), 0, rewards[-1][-1], acc[-1][-1],
-                                           ts[-1][-1], policies[-1][-1], -1, episode_num), dtype=consts.rec_type)
-
-                episode.append(episode_format)
-
-                self.frame += 1
-
-            if (not self.env.k % self.save_to_mem) or self.env.t:
-
-                episode_df = np.stack(episode)
-                trajectory.append(episode_df)
-
-                # write if enough space is available
-                if psutil.virtual_memory().available >= mem_threshold:
-
-                    # read
-                    fwrite = lock_file(self.writelock)
-                    traj_num = np.load(fwrite).item()
-                    fwrite.seek(0)
-                    np.save(fwrite, traj_num + 1)
-                    release_file(fwrite)
-
-                    traj_to_save = np.concatenate(trajectory)
-                    traj_to_save['traj'] = traj_num
-
-                    traj_file = os.path.join(self.trajectory_dir, "%d.npy" % traj_num)
-                    np.save(traj_file, traj_to_save)
-
-                    fread = lock_file(self.readlock)
-                    traj_list = np.load(fread)
-                    fread.seek(0)
-                    np.save(fread, np.append(traj_list, traj_num))
-                    release_file(fread)
-                else:
-                    assert False, "memory issue"
-
-                if self.env.t:
-                    fwrite = lock_file(self.episodelock)
-                    episode_num = np.load(fwrite).item()
-                    fwrite.seek(0)
-                    np.save(fwrite, episode_num + 1)
-                    release_file(fwrite)
-
-                    self.env.reset()
-
-            yield {'frames': self.frame}
-
     def multiplay(self):
 
         n_players = self.n_players
@@ -408,7 +282,8 @@ class GANAgent(Agent):
                 pi = beta.copy()
                 q_temp = q.copy()
 
-                pi = (1 - self.epsilon) * pi + self.epsilon / self.action_space
+                #to assume there is no zero policy
+                pi = (1 - self.eta) * pi + self.eta / self.action_space
                 pi = self.cmin * pi
 
                 rank = np.argsort(q_temp, axis=1)
@@ -420,13 +295,18 @@ class GANAgent(Agent):
                     delta -= delta_a
                     pi[range_players, a] += delta_a
 
-                pi_greed = np.zeros((n_players, self.action_space), dtype=np.float32)
-                pi_greed[range(n_players), np.argmax(q_temp, axis=1)] = 1
-                pi = (1 - self.mix) * pi + self.mix * pi_greed
+                #pi_greed = np.zeros((n_players, self.action_space), dtype=np.float32)
+                #pi_greed[range(n_players), np.argmax(q_temp, axis=1)] = 1
+                #pi = (1 - self.mix) * pi + self.mix * pi_greed
+                pi = (1 - self.mix) * pi + self.mix * self.pi_rand
                 pi = pi.clip(0, 1)
                 pi = pi / np.repeat(pi.sum(axis=1, keepdims=True), self.action_space, axis=1)
 
-                pi_explore = self.epsilon * self.pi_rand + (1 - self.epsilon) * pi
+                explore = np.random.rand(n_players, self.action_space)
+                explore = np.exp(explore) / np.sum(np.exp(explore), axis=1).reshape(n_players, 1)
+
+                pi_explore = self.epsilon * explore + (1 - self.epsilon) * pi
+                pi_explore = pi_explore / np.repeat(pi_explore.sum(axis=1, keepdims=True), self.action_space, axis=1)
 
             for i in range(n_players):
 
@@ -437,7 +317,7 @@ class GANAgent(Agent):
                 accs[i][-1].append(env.acc)
                 states[i][-1].append(s[i])
                 ts[i][-1].append(env.t)
-                policies[i][-1].append(pi[i])
+                policies[i][-1].append(pi_explore[i])
 
                 episode_format = np.array((self.frame, states[i][-1][-1].cpu().numpy(), 0, rewards[i][-1][-1], accs[i][-1][-1],
                                            ts[i][-1][-1], policies[i][-1][-1], -1, episode_num[i]), dtype=consts.rec_type)
@@ -543,7 +423,7 @@ class GANAgent(Agent):
                     pi = beta.copy()
                     q_temp = q.copy()
 
-                    pi = (1 - self.epsilon) * pi + self.epsilon * self.pi_rand
+                    pi = (1 - self.eta) * pi + self.eta * self.pi_rand
 
                     pi = self.cmin * pi
 
@@ -555,9 +435,10 @@ class GANAgent(Agent):
                         pi[a] += delta_a
                         q_temp[a] = -1e11
 
-                    pi_greed = np.zeros(self.action_space)
-                    pi_greed[np.argmax(q)] = 1
-                    pi = (1-self.mix) * pi + self.mix * pi_greed
+                    #pi_greed = np.zeros(self.action_space)
+                    #pi_greed[np.argmax(q)] = 1
+                    #pi = (1-self.mix) * pi + self.mix * pi_greed
+                    pi = (1 - self.mix) * pi + self.mix * self.pi_rand
                     pi = pi.clip(0, 1)
                     pi = pi / pi.sum()
 
@@ -585,210 +466,3 @@ class GANAgent(Agent):
                 yield results
                 results = {key: [] for key in results}
                 self.env.reset()
-
-
-    def evaluate_last_rl(self, n_tot):
-
-        try:
-            self.load_checkpoint(self.snapshot_path)
-        except:
-            print("Error in load checkpoint")
-            assert False, "evaluate_last_rl - Error in load checkpoint"
-
-        self.env.reset()
-        results = {'n': [], 'a_player': [], 'r': [], 's': [], 't': [], 'pi': [], 'acc': []}
-
-        self.beta_net.eval()
-        self.value_net.eval()
-
-        for i in range(n_tot):
-            while not self.env.t:
-                s = self.env.state.to(self.device)
-
-                beta = self.beta_net(s)
-                beta = F.softmax(beta.detach(), dim=1)
-                beta = beta.data.cpu().numpy().reshape(self.action_space)
-
-                q = self.value_net(s)
-                q = q.data.cpu().numpy().reshape(self.action_space)
-
-                pi = beta.copy()
-                q_temp = q.copy()
-
-                pi = (1 - self.epsilon) * pi + self.epsilon * self.pi_rand
-
-                pi = self.cmin * pi
-
-                delta = 1 - self.cmin
-                while delta > 0:
-                    a = np.argmax(q_temp)
-                    delta_a = np.min((delta, (self.cmax - self.cmin) * beta[a]))
-                    delta -= delta_a
-                    pi[a] += delta_a
-                    q_temp[a] = -1e11
-
-                pi_greed = np.zeros(self.action_space)
-                pi_greed[np.argmax(q)] = 1
-                pi = (1-self.mix) * pi + self.mix * pi_greed
-                pi = pi.clip(0, 1)
-                pi = pi / pi.sum()
-                pi = np.expand_dims(pi, axis=0)
-
-                self.env.step_policy(pi)
-
-                results['a_player'].append(0)
-                results['r'].append(self.env.reward)
-                results['s'].append(s.data.cpu().numpy())
-                results['t'].append(self.env.t)
-                results['pi'].append(pi)
-                results['n'].append(self.frame)
-                results['acc'].append(self.env.acc)
-
-                self.frame += 1
-
-            if self.env.t:
-                results['a_player'] = np.asarray(results['a_player'])
-                results['r'] = np.asarray(results['r'])
-                results['s'] = np.squeeze(np.asarray(results['s']), axis=1)
-                results['t'] = np.asarray(results['t'])
-                results['pi'] = np.asarray(results['pi'])
-                results['n'] = np.asarray(results['n'])
-                results['acc'] = np.asarray(results['acc'])
-
-                yield results
-                results = {key: [] for key in results}
-                self.env.reset()
-
-    def evaluate_random_policy(self, n_tot):
-
-        self.env.reset()
-        results = {'n': [], 'a_player': [], 'r': [], 's': [], 't': [], 'pi': [], 'acc': []}
-
-        for i in range(n_tot):
-            while not self.env.t:
-                s = self.env.state.to(self.device)
-
-                self.env.step_policy(np.expand_dims(self.pi_rand, axis=0))
-
-                results['a_player'].append(0)
-                results['r'].append(self.env.reward)
-                results['s'].append(s.data.cpu().numpy())
-                results['t'].append(self.env.t)
-                results['pi'].append(self.pi_rand)
-                results['n'].append(self.frame)
-                results['acc'].append(self.env.acc)
-
-                self.frame += 1
-
-            if self.env.t:
-                results['a_player'] = np.asarray(results['a_player'])
-                results['r'] = np.asarray(results['r'])
-                results['s'] = np.squeeze(np.asarray(results['s']), axis=1)
-                results['t'] = np.asarray(results['t'])
-                results['pi'] = np.asarray(results['pi'])
-                results['n'] = np.asarray(results['n'])
-                results['acc'] = np.asarray(results['acc'])
-
-                yield results
-                results = {key: [] for key in results}
-                self.env.reset()
-
-
-    def multiplay_random(self):
-
-        n_players = self.n_players
-
-        mp_env = [Env() for _ in range(n_players)]
-        self.frame = 0
-
-        range_players = np.arange(n_players)
-        rewards = [[[]] for _ in range(n_players)]
-        accs = [[[]] for _ in range(n_players)]
-        states = [[[]] for _ in range(n_players)]
-        episode = [[] for _ in range(n_players)]
-        ts = [[[]] for _ in range(n_players)]
-        policies = [[[]] for _ in range(n_players)]
-        trajectory = [[] for _ in range(n_players)]
-
-        # set initial episodes number
-        # lock read
-        fwrite = lock_file(self.episodelock)
-        current_num = np.load(fwrite).item()
-        episode_num = current_num + np.arange(n_players)
-        fwrite.seek(0)
-        np.save(fwrite, current_num + n_players)
-        release_file(fwrite)
-
-        for _ in tqdm(itertools.count()):
-
-            if not (self.frame % self.load_memory_interval):
-                try:
-                    self.load_checkpoint(self.snapshot_path)
-                except:
-                    pass
-
-            s = torch.cat([env.state.unsqueeze(0) for env in mp_env]).to(self.device)
-
-            for i in range(n_players):
-
-                env = mp_env[i]
-
-                env.step_policy(np.expand_dims(self.pi_rand, axis=0))
-                rewards[i][-1].append(env.reward)
-                accs[i][-1].append(env.acc)
-                states[i][-1].append(s[i])
-                ts[i][-1].append(env.t)
-                policies[i][-1].append(self.pi_rand)
-
-                episode_format = np.array((self.frame, states[i][-1][-1].cpu().numpy(), 0, rewards[i][-1][-1], accs[i][-1][-1],
-                                           ts[i][-1][-1], policies[i][-1][-1], -1, episode_num[i]), dtype=consts.rec_type)
-
-                episode[i].append(episode_format)
-
-                if (not env.k % self.save_to_mem) or env.t:
-
-                    print("player {} - acc {}, n-offset {}, frame {}, episode {} k {}".format(i, env.acc, self.n_offset, self.frame, episode_num[i], env.k))
-
-                    episode_df = np.stack(episode[i])
-                    trajectory[i].append(episode_df)
-
-                    # write if enough space is available
-                    if psutil.virtual_memory().available >= mem_threshold:
-                        # read
-                        fwrite = lock_file(self.writelock)
-                        traj_num = np.load(fwrite).item()
-                        fwrite.seek(0)
-                        np.save(fwrite, traj_num + 1)
-                        release_file(fwrite)
-
-                        traj_to_save = np.concatenate(trajectory[i])
-                        traj_to_save['traj'] = traj_num
-
-                        traj_file = os.path.join(self.trajectory_dir, "%d.npy" % traj_num)
-                        np.save(traj_file, traj_to_save)
-
-                        fread = lock_file(self.readlock)
-                        traj_list = np.load(fread)
-                        fread.seek(0)
-                        np.save(fread, np.append(traj_list, traj_num))
-                        release_file(fread)
-                    else:
-                        assert False, "memory error available memory {}".format(psutil.virtual_memory().available)
-
-                    trajectory[i] = []
-
-                    if env.t:
-
-                        fwrite = lock_file(self.episodelock)
-                        episode_num[i] = np.load(fwrite).item()
-                        fwrite.seek(0)
-                        np.save(fwrite, episode_num[i] + 1)
-                        release_file(fwrite)
-
-                        env.reset()
-
-            self.frame += 1
-            if not self.frame % self.player_replay_size:
-                yield True
-                if self.n_offset >= self.n_tot:
-                    break
