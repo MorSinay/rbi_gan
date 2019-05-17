@@ -144,6 +144,7 @@ class GANAgent(Agent):
             a = sample['a'].to(self.device, non_blocking=True)
             r = sample['r'].to(self.device, non_blocking=True)
             t = sample['t'].to(self.device, non_blocking=True)
+            pi_explore = sample['pi_explore'].to(self.device, non_blocking=True)
             pi = sample['pi'].to(self.device, non_blocking=True)
             acc = sample['acc'].to(self.device, non_blocking=True)
             s_tag = sample['s_tag'].to(self.device, non_blocking=True)
@@ -153,6 +154,7 @@ class GANAgent(Agent):
             beta = self.beta_net(s)
             beta_policy = F.softmax(beta.detach(), dim=1) #debug
             beta_log = F.log_softmax(beta, dim=1)
+            #TODO ELAD: the beta loss is with pi or pi_explore?
             loss_beta = (-beta_log * pi).sum(dim=1).mean()
 
             # dqn
@@ -161,8 +163,9 @@ class GANAgent(Agent):
             target_value = r + (1 - t) * args.gamma * (pi_tag * x_tag).sum(dim=1)
 
             #pi_explore = (self.epsilon * self.pi_rand + (1 - self.epsilon) * pi).to(self.device)
-            #value = (pi_explore * x).sum(dim=1)
-            value = (pi * x).sum(dim=1)
+            # TODO ELAD: changed
+            value = (pi_explore * x).sum(dim=1)
+            #value = (pi * x).sum(dim=1)
             loss_q = self.q_loss(value, target_value).mean()
 
             self.optimizer_beta.zero_grad()
@@ -241,6 +244,7 @@ class GANAgent(Agent):
         episode = [[] for _ in range(n_players)]
         ts = [[[]] for _ in range(n_players)]
         policies = [[[]] for _ in range(n_players)]
+        explore_policies = [[[]] for _ in range(n_players)]
         trajectory = [[] for _ in range(n_players)]
 
         # set initial episodes number
@@ -317,10 +321,12 @@ class GANAgent(Agent):
                 accs[i][-1].append(env.acc)
                 states[i][-1].append(s[i])
                 ts[i][-1].append(env.t)
-                policies[i][-1].append(pi_explore[i])
+                policies[i][-1].append(pi[i])
+                explore_policies[i][-1].append(pi_explore[i])
 
-                episode_format = np.array((self.frame, states[i][-1][-1].cpu().numpy(), 0, rewards[i][-1][-1], accs[i][-1][-1],
-                                           ts[i][-1][-1], policies[i][-1][-1], -1, episode_num[i]), dtype=consts.rec_type)
+                episode_format = np.array((self.frame, states[i][-1][-1].cpu().numpy(), 0, rewards[i][-1][-1],
+                                           accs[i][-1][-1], ts[i][-1][-1], policies[i][-1][-1],
+                                           explore_policies[i][-1][-1], -1, episode_num[i]), dtype=consts.rec_type)
 
                 episode[i].append(episode_format)
 

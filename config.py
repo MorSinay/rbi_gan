@@ -138,7 +138,7 @@ class Consts(object):
 
     rec_type = np.dtype([('fr', np.int64), ('st', np.float32, (1,action_space*action_space)), ('a', np.int64),
                          ('r', np.float32), ('acc', np.float32), ('t', np.float32), ('pi', np.float32, action_space),
-                         ('traj', np.int64), ('ep', np.int64)])
+                         ('pi_explore', np.float32, action_space), ('traj', np.int64), ('ep', np.int64)])
 
     outdir = os.path.join(base_dir, 'results')
     indir = os.path.join('/dev/shm/', username, 'gan_rl',server)

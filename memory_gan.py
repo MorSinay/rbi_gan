@@ -27,7 +27,8 @@ class Memory(torch.utils.data.Dataset):
 
         return {'s': torch.from_numpy(np.array(sample['st'])), 'r': torch.from_numpy(np.array(sample['r'])),
                 'a': torch.from_numpy(np.array(sample['a'])), 't': torch.from_numpy(np.array(sample['t'])),
-                'pi': torch.from_numpy(sample['pi']), 'acc': torch.from_numpy(np.array(sample['acc'])),
+                'pi': torch.from_numpy(sample['pi']), 'pi_explore': torch.from_numpy(sample['pi_explore']),
+                'acc': torch.from_numpy(np.array(sample['acc'])),
                 's_tag': torch.from_numpy(s_tag), 'pi_tag': torch.from_numpy(next_sample['pi'])}
 
 
