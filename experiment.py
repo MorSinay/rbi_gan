@@ -306,11 +306,11 @@ class Experiment(object):
         logger.info(beta)
         logger.info(q)
 
-    def evaluate(self):
+    def evaluate(self, pi = None):
         time.sleep(15)
 
         agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint)
-        player = agent.evaluate()
+        player = agent.evaluate(pi)
 
         for n, train_results in tqdm(enumerate(player)):
 
@@ -321,17 +321,36 @@ class Experiment(object):
             # log to tensorboard
             if args.tensorboard:
 
-                self.writer.add_scalar('evaluation/k', train_results['k'], frame)
-                self.writer.add_scalar('evaluation/acc', train_results['acc'][-1], frame)
+                rand_param = "_rand_"+str(args.actor_index) if args.evaluate_random_policy else ""
 
-                game_str = 'evaluation_game_'+str(n)+'_frame_'+str(frame)
+                self.writer.add_scalar('evaluation' + rand_param + '/k', train_results['k'], frame)
+                self.writer.add_scalar('evaluation' + rand_param + '/acc', train_results['acc'][-1], frame)
+                x = (train_results['pi'] * train_results['q']).sum(dim=1)
+                self.writer.add_scalar('evaluation' + rand_param + '/score', x, frame)
+
+                game_str = 'evaluation' + rand_param + '_game_'+str(n)+'_frame_'+str(frame)
                 for i in range(len(train_results['pi'])):
                     self.writer.add_scalar(game_str + '/pi', train_results['pi'][i], i)
                     self.writer.add_scalar(game_str + '/beta', train_results['beta'][i], i)
                     self.writer.add_scalar(game_str + '/value', train_results['q'][i], i)
 
+                G = 0
+                rewards = []
+                first = True
+                for r in reversed(train_results['r']):
+                    # the value of the terminal state is 0 by definition
+                    # we should ignore the first state we encounter
+                    # and ignore the last G, which is meaningless since it doesn't correspond to any move
+                    rewards.append(G)
+                    G = r + args.gamma * G
+                rewards.reverse()  # we want it to be in order of state visited
+
                 for i in range(len(train_results['acc'])):
                     self.writer.add_scalar(game_str + '/acc', train_results['acc'][i], i)
+                    self.writer.add_scalar(game_str + '/r', train_results['r'][i], i)
+                    self.writer.add_scalar(game_str + '/g', rewards[i], i)
+
+
 
                 # self.writer.add_histogram("policy/pi", self.probability_to_hist(train_results['pi']), frame, 'doane')
                 # self.writer.add_histogram("policy/beta", self.probability_to_hist(train_results['beta']), frame, 'doane')
@@ -358,99 +377,11 @@ class Experiment(object):
             logger.info(beta)
             logger.info(q)
 
+            if args.evaluate_random_policy:
+                agent.n_offset = args.n_tot
+
+            if n > 50:
+                break
+
         print("End evaluation")
 
-    def evaluate_last_rl(self, params=None):
-        agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint)
-
-        # load model
-        try:
-            if params is not None:
-                aux = agent.resume(params)
-            elif self.load_last:
-                aux = agent.resume(self.checkpoint)
-            elif self.load_best:
-                aux = agent.resume(self.checkpoint_best)
-            else:
-                raise NotImplementedError
-        except:  # when reading and writing collide
-            time.sleep(2)
-            if params is not None:
-                aux = agent.resume(params)
-            elif self.load_last:
-                aux = agent.resume(self.checkpoint)
-            elif self.load_best:
-                aux = agent.resume(self.checkpoint_best)
-            else:
-                raise NotImplementedError
-
-        player = agent.evaluate_last_rl(1)
-
-        for n, train_results in tqdm(enumerate(player)):
-
-            print("print_evaluation_experiment")
-
-            # log to tensorboard
-            if args.tensorboard:
-
-                res_size = train_results['s'].shape[0]
-                for i in range(res_size):
-                    #self.writer.add_scalar('evaluation/states/state', train_results['s'][i], i)
-                    self.writer.add_scalar('evaluation/actions/reward', train_results['r'][i], i)
-                    self.writer.add_scalar('evaluation/actions/acc', train_results['acc'][i], i)
-                self.writer.add_histogram("evaluation/actions/a_player", train_results['a_player'], n, 'doane')
-
-                if hasattr(agent, "beta_net"):
-                    for name, param in agent.beta_net.named_parameters():
-                        self.writer.add_histogram("evaluation/beta_net/%s" % name, param.clone().cpu().data.numpy(), n, 'fd')
-                if hasattr(agent, "value_net"):
-                    for name, param in agent.value_net.named_parameters():
-                        self.writer.add_histogram("evaluation/value_net/%s" % name, param.clone().cpu().data.numpy(), n, 'fd')
-
-
-    def evaluate_random_policy(self, params=None):
-        agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint)
-
-        # load model
-        try:
-            if params is not None:
-                aux = agent.resume(params)
-            elif self.load_last:
-                aux = agent.resume(self.checkpoint)
-            elif self.load_best:
-                aux = agent.resume(self.checkpoint_best)
-            else:
-                raise NotImplementedError
-        except:  # when reading and writing collide
-            time.sleep(2)
-            if params is not None:
-                aux = agent.resume(params)
-            elif self.load_last:
-                aux = agent.resume(self.checkpoint)
-            elif self.load_best:
-                aux = agent.resume(self.checkpoint_best)
-            else:
-                raise NotImplementedError
-
-        player = agent.evaluate_random_policy(1)
-
-        for n, train_results in tqdm(enumerate(player)):
-
-            print("print_evaluation_random_policy_experiment")
-
-            # log to tensorboard
-            if args.tensorboard:
-
-                res_size = train_results['s'].shape[0]
-                for i in range(res_size):
-                    #self.writer.add_scalar('evaluation_random_policy/states/state', train_results['s'][i], i)
-                    self.writer.add_scalar('evaluation_random_policy/actions/reward', train_results['r'][i], i)
-                    self.writer.add_scalar('evaluation_random_policy/actions/acc', train_results['acc'][i], i)
-                self.writer.add_histogram("evaluation_random_policy/actions/a_player", train_results['a_player'], n, 'doane')
-
-                if hasattr(agent, "beta_net"):
-                    for name, param in agent.beta_net.named_parameters():
-                        self.writer.add_histogram("evaluation_random_policy/beta_net/%s" % name, param.clone().cpu().data.numpy(), n, 'fd')
-                if hasattr(agent, "value_net"):
-                    for name, param in agent.value_net.named_parameters():
-                        self.writer.add_histogram("evaluation_random_policy/value_net/%s" % name, param.clone().cpu().data.numpy(), n, 'fd')

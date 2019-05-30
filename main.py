@@ -2,6 +2,7 @@ from config import consts, args
 from logger import logger
 from experiment import Experiment
 import torch
+import numpy as np
 import time
 
 
@@ -29,13 +30,13 @@ def main():
             logger.info("Evaluate performance")
             exp.evaluate()
 
-        elif args.evaluate_last_rl:
-            logger.info("Evaluate final performance")
-            exp.evaluate_last_rl()
-
         elif args.evaluate_random_policy:
             logger.info("Evaluate random policy performance")
-            exp.evaluate_random_policy()
+            pi = np.ones(consts.action_space, dtype=np.float32) / consts.action_space
+            #pi = np.ones(consts.action_space, dtype=np.float32)*0.01
+            #pi[9] += 0.65
+            #pi[3] += 0.25
+            exp.evaluate(pi=pi)
 
         elif args.multiplay:
             logger.info("Start a multiplay Session")

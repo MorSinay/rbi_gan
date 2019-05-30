@@ -25,15 +25,9 @@ mem_threshold = consts.mem_threshold
 class GANAgent(Agent):
 
     def __init__(self, exp_name, player=False, choose=False, checkpoint=None):
-        if args.reward == 'acc':
-            reward_str = 'ACCURACY'
-        elif args.reward == 'f1':
-            reward_str = "F1"
-        elif args.reward == 'label0':
-            reward_str = "LABEL 0"
-        else:
-            assert False, "error in reward"
-        print("Learning POLICY method ussing {} with GANAgent".format(reward_str))
+
+        reward_str = args.reward.upper() + " with " + args.acc.upper()
+        print("Learning POLICY method using {} with GANAgent".format(reward_str))
         super(GANAgent, self).__init__(exp_name, checkpoint)
 
         use_cuda = not args.no_cuda and torch.cuda.is_available()
@@ -56,11 +50,6 @@ class GANAgent(Agent):
         self.pi_rand = np.ones(self.action_space, dtype=np.float32) / self.action_space
         self.q_loss = nn.SmoothL1Loss(reduction='none')
         self.kl_loss = nn.KLDivLoss()
-
-        if args.reward == 'acc':
-            self.acc_reward = True
-        else:
-            self.acc_reward = False
 
         if player:
             # play variables
@@ -150,20 +139,23 @@ class GANAgent(Agent):
             s_tag = sample['s_tag'].to(self.device, non_blocking=True)
             pi_tag = sample['pi_tag'].to(self.device, non_blocking=True)
 
-            # Behavioral nets
+
             beta = self.beta_net(s)
             beta_policy = F.softmax(beta.detach(), dim=1) #debug
+
             beta_log = F.log_softmax(beta, dim=1)
-            #TODO ELAD: the beta loss is with pi or pi_explore?
             loss_beta = (-beta_log * pi).sum(dim=1).mean()
 
             # dqn
             x_tag = self.target_net(s_tag).detach()
             x = self.value_net(s)
-            target_value = r + (1 - t) * args.gamma * (pi_tag * x_tag).sum(dim=1)
+
+            if args.rl_metric == 'mc':
+                target_value = r
+            else:
+                target_value = r + (1 - t) * self.gamma * (pi_tag * x_tag).sum(dim=1)
 
             #pi_explore = (self.epsilon * self.pi_rand + (1 - self.epsilon) * pi).to(self.device)
-            # TODO ELAD: changed
             value = (pi_explore * x).sum(dim=1)
             #value = (pi * x).sum(dim=1)
             loss_q = self.q_loss(value, target_value).mean()
@@ -229,6 +221,33 @@ class GANAgent(Agent):
                         break
 
         print("Learn Finish")
+
+    def actor_critic_learn(self, s, pi, s_tag, r, t, pi_tag, pi_explore):
+        beta = self.beta_net(s)
+        beta_log = F.log_softmax(beta, dim=1)
+        loss_beta = (-beta_log * pi).sum(dim=1).mean()
+
+        # dqn
+        x_tag = self.target_net(s_tag).detach()
+        x = self.value_net(s)
+
+        if args.rl_metric == 'mc':
+            target_value = r
+        else:
+            target_value = r + (1 - t) * self.gamma * (pi_tag * x_tag).sum(dim=1)
+
+        # pi_explore = (self.epsilon * self.pi_rand + (1 - self.epsilon) * pi).to(self.device)
+        value = (pi_explore * x).sum(dim=1)
+        # value = (pi * x).sum(dim=1)
+        loss_q = self.q_loss(value, target_value).mean()
+
+        self.optimizer_beta.zero_grad()
+        loss_beta.backward()
+        self.optimizer_beta.step()
+
+        self.optimizer_value.zero_grad()
+        loss_q.backward()
+        self.optimizer_value.step()
 
     def multiplay(self):
 
@@ -331,6 +350,7 @@ class GANAgent(Agent):
                 episode[i].append(episode_format)
 
                 if (not env.k % self.save_to_mem) or env.t:
+                #if env.t:
 
                     print("player {} - acc {}, n-offset {}, frame {}, episode {} k {}".format(i, env.acc, self.n_offset, self.frame, episode_num[i], env.k))
 
@@ -348,6 +368,10 @@ class GANAgent(Agent):
 
                         traj_to_save = np.concatenate(trajectory[i])
                         traj_to_save['traj'] = traj_num
+
+                        if args.rl_metric == 'mc':
+                            for i in range (traj_to_save['r'].shape[0]-2, -1, -1):
+                                traj_to_save['r'][i] += self.gamma*traj_to_save['r'][i+1]
 
                         traj_file = os.path.join(self.trajectory_dir, "%d.npy" % traj_num)
                         np.save(traj_file, traj_to_save)
@@ -383,7 +407,7 @@ class GANAgent(Agent):
     def train(self, n_interval, n_tot):
         return
 
-    def evaluate(self):
+    def evaluate(self, eval_pi=None):
 
         #time.sleep(15)
 
@@ -393,7 +417,7 @@ class GANAgent(Agent):
             print("Error in load checkpoint")
             pass
 
-        results = {'n': [], 'pi': [], 'beta': [], 'q': [], 'acc': [], 'k': []}
+        results = {'n': [], 'pi': [], 'beta': [], 'q': [], 'acc': [], 'k': [], 'r': []}
 
         #for _ in tqdm(itertools.count()):
         for _ in itertools.count():
@@ -403,9 +427,6 @@ class GANAgent(Agent):
             except:
                 print("Error in load checkpoint")
                 continue
-
-            if self.n_offset >= args.n_tot:
-                break
 
             self.env.reset()
             self.beta_net.eval()
@@ -423,7 +444,9 @@ class GANAgent(Agent):
                 q = self.value_net(s)
                 q = q.data.cpu().numpy().reshape(self.action_space)
 
-                if self.n_offset <= self.n_rand:
+                if eval_pi is not None:
+                    pi = eval_pi
+                elif self.n_offset <= self.n_rand:
                     pi = self.pi_rand
                 else:
                     pi = beta.copy()
@@ -454,6 +477,7 @@ class GANAgent(Agent):
                 results['pi'].append(pi)
                 results['beta'].append(beta)
                 results['q'].append(q)
+                results['r'].append(self.env.reward)
                 results['acc'].append(self.env.acc)
 
                 if self.env.t:
@@ -464,6 +488,7 @@ class GANAgent(Agent):
                 results['beta'] = np.average(np.asarray(results['beta']), axis=0).flatten()
                 results['q'] = np.average(np.asarray(results['q']), axis=0).flatten()
                 results['acc'] = np.asarray(results['acc'])
+                results['r'] = np.asarray(results['r'])
 
                 results['n'] = self.n_offset
                 results['k'] = self.env.k
@@ -471,4 +496,10 @@ class GANAgent(Agent):
 
                 yield results
                 results = {key: [] for key in results}
-                self.env.reset()
+
+            if eval_pi is not None:
+                break
+
+            if self.n_offset >= args.n_tot:
+                break
+

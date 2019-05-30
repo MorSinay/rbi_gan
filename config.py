@@ -35,7 +35,7 @@ parser.add_argument('--no-cuda', action='store_true', default=False,
 # Env Arguments
 parser.add_argument('--env-batch-size', type=int, default=32, metavar='N',
                     help='env batch size for training (default: 64)')
-parser.add_argument('--env-max-k', type=int, default=6000, metavar='N',
+parser.add_argument('--env-max-k', type=int, default=11250, metavar='N',
                     help='env game length (default: 6000)')
 parser.add_argument('--env-max-acc', type=float, default=0.89, metavar='N',
                     help='env max acc per game (default: 0.89)')
@@ -62,8 +62,11 @@ parser.add_argument('--batch', type=int, default=64, help='Mini-Batch Size')
 parser.add_argument('--game', type=str, default='active', help='active | generate')
 parser.add_argument('--identifier', type=str, default='debug', help='The name of the model to use')
 parser.add_argument('--algorithm', type=str, default='action', help='[action|policy]')
-parser.add_argument('--reward', type=str, default='acc', help='[acc|f1|label0]')
-parser.add_argument('--benchmark', type=str, default='fmnist', help='[fmnist|cifar10]')
+
+parser.add_argument('--acc', type=str, default='all', help='[all|label]')
+parser.add_argument('--reward', type=str, default='shape', help='[shape|no_shape|step]')
+
+parser.add_argument('--benchmark', type=str, default='mnist', help='[mnist|fmnist|cifar10]')
 #parser.add_argument('--base-dir', type=str, default=base_dir, help='Base directory for Logs and results')
 
 # # booleans
@@ -75,7 +78,6 @@ boolean_feature("postprocess", False, 'Postprocess evaluation results')
 boolean_feature("multiplay", False, 'Send samples to memory from multiple parallel players')
 boolean_feature("multiplay-random", False, 'Send random samples to memory from multiple parallel players')
 boolean_feature("evaluate", False, 'evaluate player')
-boolean_feature("evaluate-last-rl", False, 'evaluate last rl player')
 boolean_feature("evaluate-random-policy", False, 'evaluate random policy|action player')
 boolean_feature("clean", False, 'Clean old trajectories')
 #TODO Mor: True
@@ -98,7 +100,7 @@ parser.add_argument('--cuda-default', type=int, default=0, help='Default GPU')
 #
 # #train parameters
 parser.add_argument('--update-target-interval', type=int, default=2500, metavar='STEPS', help='Number of traning iterations between q-target updates')
-parser.add_argument('--n-tot', type=int, default=3160000, metavar='STEPS', help='Total number of training steps')
+parser.add_argument('--n-tot', type=int, default=1160000, metavar='STEPS', help='Total number of training steps')
 parser.add_argument('--checkpoint-interval', type=int, default=5000, metavar='STEPS', help='Number of training steps between evaluations')
 # parser.add_argument('--random-initialization', type=int, default=2500, metavar='STEPS', help='Number of training steps in random policy')
 parser.add_argument('--player-replay-size', type=int, default=2500, help='Player\'s replay memory size')
@@ -107,12 +109,12 @@ parser.add_argument('--load-memory-interval', type=int, default=50, metavar='STE
 parser.add_argument('--replay-updates-interval', type=int, default=5000, metavar='STEPS', help='Number of training iterations between q-target updates')
 parser.add_argument('--replay-memory-size', type=int, default=2000000, help='Total replay exploit memory size')
 parser.add_argument('--gamma', type=float, default=0.97, metavar='LR', help='gamma (default: 0.97)')
-parser.add_argument('--cmin', type=float, default=0.9, metavar='c_min', help='Lower reroute threshold')
-parser.add_argument('--cmax', type=float, default=1.1, metavar='c_max', help='Upper reroute threshold')
+parser.add_argument('--cmin', type=float, default=0, metavar='c_min', help='Lower reroute threshold')
+parser.add_argument('--cmax', type=float, default=2, metavar='c_max', help='Upper reroute threshold')
 parser.add_argument('--delta', type=float, default=0.1, metavar='delta', help='Total variation constraint')
 parser.add_argument('--save-to-mem', type=int, default=200, metavar='stm', help='Save to memory')
-parser.add_argument('--n-rand', type=int, default=10000, metavar='rnand', help='random play')
-
+parser.add_argument('--n-rand', type=int, default=5000, metavar='rnand', help='random play')
+parser.add_argument('--rl-metric', type=str, default='td', metavar='rl', help='td|mc')
 #
 # #actors parameters
 parser.add_argument('--n-players', type=int, default=30, help='Number of parallel players for current actor')
@@ -134,7 +136,7 @@ class Consts(object):
     nop = 0
 
     #TODO Mor: what is this?
-    mem_threshold = int(5e9)
+    mem_threshold = int(2e9)
 
     rec_type = np.dtype([('fr', np.int64), ('st', np.float32, (1,action_space*action_space)), ('a', np.int64),
                          ('r', np.float32), ('acc', np.float32), ('t', np.float32), ('pi', np.float32, action_space),

@@ -26,15 +26,7 @@ class GANAgent(Agent):
 
     def __init__(self, exp_name, player=False, choose=False, checkpoint=None):
 
-        if args.reward == 'acc':
-            reward_str = 'ACCURACY'
-        elif args.reward == 'f1':
-            reward_str = "F1"
-        elif args.reward == 'label0':
-            reward_str = "LABEL 0"
-        else:
-            assert False, "error in reward"
-        print("Learning ACTION method ussing {} with GANAgent".format(reward_str))
+        print("Learning ACTION method with GANAgent")
 
         super(GANAgent, self).__init__(exp_name, checkpoint)
 
@@ -58,11 +50,6 @@ class GANAgent(Agent):
         self.pi_rand = np.ones(self.action_space, dtype=np.float32) / self.action_space
         self.q_loss = nn.SmoothL1Loss(reduction='none')
         self.kl_loss = nn.KLDivLoss()
-
-        if args.reward == 'acc':
-            self.acc_reward = True
-        else:
-            self.acc_reward = False
 
         if player:
             # play variables

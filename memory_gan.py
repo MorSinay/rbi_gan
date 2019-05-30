@@ -76,8 +76,16 @@ class ReplayBatchSampler(object):
             #         break
                 #traj_sorted = list(range(1000))
                 continue
-
-            replay = np.concatenate([np.load(os.path.join(self.trajectory_dir, "%d.npy" % traj)) for traj in traj_sorted], axis=0)
+            try:
+                replay = np.concatenate([np.load(os.path.join(self.trajectory_dir, "%d.npy" % traj)) for traj in traj_sorted], axis=0)
+            except Exception as e:
+                import sys
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(exc_type, fname, exc_tb.tb_lineno)
+                print(e)
+                print("traj_sorted", traj_sorted)
+                print("traj_old", traj_old)
 
             replay_buffer = np.concatenate([replay_buffer, replay], axis=0)[-self.replay_memory_size:]
 

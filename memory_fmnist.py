@@ -3,28 +3,33 @@ import torch
 import random
 import numpy as np
 import os
-from config import consts, args, DirsAndLocksSingleton, lock_file, release_file
+from config import consts, args
+import pwd
 
 class Memory(torch.utils.data.Dataset):
 
     def __init__(self, benchmark):
         super(Memory, self).__init__()
 
+        self.rawdata = consts.rawdata
+
         if benchmark == 'fmnist':
             transform = transforms.Compose([transforms.ToTensor(),
                                             transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
 
-            rawdata = os.path.join('/dev/shm/', 'elkayam', 'fmnist')
+            data_set = datasets.FashionMNIST(root=self.rawdata, train=True, transform=transform, download=False)
 
-            data_set = datasets.FashionMNIST(root=rawdata, train=True, transform=transform, download=False)
+        elif benchmark == 'mnist':
+            transform = transforms.Compose([transforms.ToTensor(),
+                                            transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
+
+            data_set = datasets.MNIST(root=self.rawdata, train=True, transform=transform, download=False)
 
         elif benchmark == 'cifar10':
             transform = transforms.Compose([transforms.ToTensor(),
                                             transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.247, 0.243, 0.261))])
 
-            rawdata = os.path.join('/dev/shm/', 'elkayam', 'cifar10')
-
-            data_set = datasets.CIFAR10(root=rawdata, train=True, transform=transform, download=False)
+            data_set = datasets.CIFAR10(root=self.rawdata, train=True, transform=transform, download=False)
         else:
             assert False, "no valid benchmark"
 

@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
-from sklearn.metrics import confusion_matrix, f1_score
+from sklearn.metrics import confusion_matrix
 from torchvision import datasets, transforms
 from memory_fmnist import Singleton_Mem
 from Net import Net
@@ -9,6 +9,7 @@ import torch.optim as optim
 import os
 import random
 import numpy as np
+import collections
 
 from config import consts, args
 
@@ -22,32 +23,67 @@ class Env(object):
         self.device = torch.device("cuda" if use_cuda else "cpu")
         self.model = Model()
         self.state = None
-        self.acc = None
+        self.acc = 0
         self.reward = None
-        self.f1 = None
         self.iterations = args.env_iterations
         self.t = 0
         self.k = 0
         self.max_k = args.env_max_k
         self.max_acc = args.env_max_acc
-        self.reward_metric = args.reward
+
+        self.list_reward = [0.3, 0.4, 0.45, 0.5, 1.0, 10, 100]
+        self.list_level = [0.3, 0.4, 0.6, 0.8, 0.9, 0.95, 1.]
+        self.level_achieved = [False, False, False, False, False, False, False]
 
         if args.evaluate:
             self.test_func = self.model.test
         else:
-            self.test_func = self.model.test_only_one_batch
+            self.test_func = self.model.test
+            #self.test_func = self.model.test_only_one_batch
+
+        if args.acc == 'all':
+            self.acc_func = self.acc_calc
+        else:
+            self.acc_func = self.label_calc
+
+        if args.reward == 'shape':
+            self.reward_func = self.reward_shape
+        elif args.reward == 'no_shape':
+            self.reward_func = self.reward_no_shape
+        else:
+            self.reward_func = self.reward_step
 
         self.reset()
 
+    def acc_calc(self, cm):
+        return np.trace(cm)/np.sum(cm)
+
+    def label_calc(self, cm):
+        label = 9
+        return cm[label][label]/cm.sum(axis=1)[label]
+
+    def reward_shape(self, next_acc):
+        self.reward = np.float32((next_acc - self.acc) / (1 - self.acc))
+
+    def reward_no_shape(self, next_acc):
+        self.reward = np.float32(next_acc - self.acc)
+
+    def reward_step(self, next_acc):
+
+        self.reward = 0
+
+        items = [i for i, x in enumerate(self.level_achieved) if (not x) and (next_acc >= self.list_level[i])]
+        if len(items) != 0:
+            self.reward = self.list_reward[items[0]]
+            self.list_level[items[0]] = True
+
     def reset(self):
-        self.model.load_model()
-        cm, self.f1 = self.test_func()
-
-        if self.reward_metric == 'label0':
-            self.acc = cm[0][0] / cm.sum(axis=1)[0]
-        else:
-            self.acc = np.trace(cm)
-
+        #self.model.load_model()
+        self.model.reset_model()
+        cm = self.test_func()
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        self.acc = 0
+        self.reward = 0
         self.state = torch.Tensor(cm).view(-1, self.output_size * self.output_size)
 
         self.t = 0
@@ -66,23 +102,13 @@ class Env(object):
 
             # TODO: need to check about the option to save all the test on a GPU
             # TODO: maybe save a GPU to tun only the test
-            new_state, next_f1 = self.test_func()
-
-            if self.reward_metric == 'label0':
-                next_acc = new_state[0][0] / new_state.sum(axis=1)[0]
-                self.reward = np.float32(next_acc - self.acc)
-            elif self.reward_metric == 'acc':
-                next_acc = np.trace(new_state)
-                self.reward = np.float32((next_acc - self.acc) / (1 - self.acc))
-            elif self.reward_metric == 'f1':
-                next_acc = np.trace(new_state)
-                self.reward = next_f1 - self.f1
-            else:
-                assert False, "reward not defined"
-
-            self.state = torch.Tensor(new_state).view(-1, self.output_size * self.output_size)
+            cm = self.test_func()
+            next_acc = self.acc_func(cm)
+            self.reward_func(next_acc)
             self.acc = next_acc
-            self.f1 = next_f1
+
+            new_state = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+            self.state = torch.Tensor(new_state).view(-1, self.output_size * self.output_size)
             self.k += 1
 
             if self.k >= self.max_k or self.acc >= self.max_acc:
@@ -98,49 +124,51 @@ class Env(object):
 
             # TODO: need to check about the option to save all the test on a GPU
             # TODO: maybe save a GPU to tun only the test
-            new_state, next_f1 = self.test_func()
-
-            if self.reward_metric == 'label0':
-                next_acc = new_state[0][0] / new_state.sum(axis=1)[0]
-                self.reward = np.float32(next_acc - self.acc)
-            elif self.reward_metric == 'acc':
-                next_acc = np.trace(new_state)
-                self.reward = np.float32((next_acc - self.acc) / (1 - self.acc))
-            elif self.reward_metric == 'f1':
-                next_acc = np.trace(new_state)
-                self.reward = next_f1 - self.f1
-            else:
-                assert False, "reward not defined"
-
-            self.state = torch.Tensor(new_state).view(-1, self.output_size * self.output_size)
+            cm = self.test_func()
+            next_acc = self.acc_func(cm)
+            self.reward_func(next_acc)
             self.acc = next_acc
-            self.f1 = next_f1
+
+            new_state = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+            self.state = torch.Tensor(new_state).view(-1, self.output_size * self.output_size)
             self.k += 1
 
             if self.k >= self.max_k or self.acc >= self.max_acc:
-                # TODO: is it right?
                 self.t = 1
 
 class Model():
     def __init__(self):
-        self.model = None
+
+        if args.benchmark == 'fmnist':
+            self.data_func = datasets.FashionMNIST
+            self.transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
+        elif args.benchmark == 'mnist':
+            self.data_func = datasets.MNIST
+            self.transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
+
+        elif args.benchmark == 'cifar10':
+            self.data_func = datasets.CIFAR10
+            self.transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.247, 0.243, 0.261))])
+        else:
+            assert False, "wrong benchmark"
+
+        self.outputs = consts.action_space
         self.optimizer = None
         self.test_loader = None
-        self.test_loader_batch = args.test_loader_batch_size
-        self.outputs = consts.action_space
+        self.test_loader_batch = 256 #args.test_loader_batch_size
         use_cuda = not args.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if use_cuda else "cpu")
         self.lr = args.model_lr
         self.betas = (args.model_beta1, args.model_beta2)
         self.model_name = "net.pkl"
         self.model_dir = consts.modeldir
+        self.load_test_loader()
 
-        if args.benchmark == 'fmnist':
-            self.load_test_loader_fmnist()
-        else:
-            self.load_test_loader_cifar10()
-        #self.single_test_loader = Singleton_Loader()
-        self.load_model()
+        self.create_model()
+        #self.load_model()
 
     def train(self, train_loader):
         self.model.train()
@@ -168,7 +196,7 @@ class Model():
         pred_list = []
         target_list = []
         with torch.no_grad():
-            for data, target in tqdm(self.test_loader):
+            for data, target in self.test_loader:
                 target_list.append(target.numpy())
                 data, target = data.to(self.device), target.to(self.device)
                 output = self.model(data)
@@ -180,8 +208,7 @@ class Model():
         pred_list = np.concatenate(pred_list)
 
         cm = confusion_matrix(target_list, pred_list, labels=range(self.outputs))
-        f1 = f1_score(target_list,pred_list, labels=range(self.outputs), average='macro')
-        return cm/cm.sum(),f1
+        return cm
 
     def test_only_one_batch(self):
         self.model.eval()
@@ -203,27 +230,29 @@ class Model():
         pred_list = np.concatenate(pred_list)
 
         cm = confusion_matrix(target_list, pred_list, labels=range(self.outputs))
-        f1 = f1_score(target_list,pred_list, labels=range(self.outputs), average='macro')
-        return cm / cm.sum(), f1
+        #cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        return cm
 
+
+    def reset_model(self):
+        self.model.reset()
+        self.optimizer.state = collections.defaultdict(dict)
 
     def create_model(self):
         self.model = Net(self.outputs).to(self.device)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr, betas=self.betas)
+        #self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr, betas=self.betas)
+        self.optimizer = optim.SGD(self.model.parameters(), lr=self.lr)
+        self.reset_model()
 
     def load_model(self):
         if self.model is None:
-            self.create_model()
-            return
+            assert False, 'no model'
 
         model_path = os.path.join(self.model_dir, self.model_name)
 
         if not os.path.exists(model_path):
             print("-------------NO MODEL FOUND--------------")
-            if args.benchmark == 'fmnist':
-                train_primarily_model_fmnist(250, 128, 4)
-            else:
-                assert False, 'load_model'
+            assert False, 'load_model'
 
         save_dict = torch.load(model_path)
         self.model.load_state_dict(save_dict['state_dict'])
@@ -238,41 +267,35 @@ class Model():
 
         torch.save(save_dict, os.path.join(self.model_dir, self.model_name))
 
-    def load_test_loader_fmnist(self):
+    def load_test_loader(self):
 
-        transform = transforms.Compose([transforms.ToTensor(),
-                                        transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
+        self.test_loader = get_subset_data_loader(self.data_func, self.transform, False, self.test_loader_batch, 100)
 
 
-        dataset = datasets.FashionMNIST(root=consts.rawdata, train=False, transform=transform,
-                                        download=False)
+def get_subset_data_loader(dataset_func, transform, train, batch_size, sample_per_class=None):
 
-     #   self.test_loader = torch.utils.data.DataLoader(dataset=dataset,
-      #                                                 batch_size=self.test_loader_batch, shuffle=True,
-       #                                                num_workers=args.cpu_workers)
+    dataset = dataset_func(root=consts.rawdata, train=train, transform=transform, download=False)
 
-        self.test_loader = torch.utils.data.DataLoader(dataset=dataset,
-                                                        batch_size=self.test_loader_batch, shuffle=True)
+    if sample_per_class is None:
+        return torch.utils.data.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
-    def load_test_loader_cifar10(self):
+    else:
+        y = [i[1] for i in dataset]
+        data_dict = {i: list() for i in range(consts.action_space)}
+        for i in range(len(y)):
+            data_dict[y[i].item()].append(i)
 
-        transform = transforms.Compose([transforms.ToTensor(),
-                                        transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.247, 0.243, 0.261))])
+        subset_index = list()
+        for i in range(consts.action_space):
+            subset_index.append(random.sample(data_dict[i], sample_per_class))
 
-        dataset = datasets.CIFAR10(root=consts.rawdata, train=False, transform=transform,
-                                        download=False)
-
-        #   self.test_loader = torch.utils.data.DataLoader(dataset=dataset,
-        #                                                 batch_size=self.test_loader_batch, shuffle=True,
-        #                                                num_workers=args.cpu_workers)
-
-        self.test_loader = torch.utils.data.DataLoader(dataset=dataset,
-                                                       batch_size=self.test_loader_batch, shuffle=True)
-
+        subset_indexes_flatten = [y for x in subset_index for y in x]
+        data_subset = torch.utils.data.Subset(dataset, subset_indexes_flatten)
+        return torch.utils.data.DataLoader(dataset=data_subset, batch_size=batch_size, shuffle=True)
 
 def train_primarily_model_fmnist(sumples_per_class, batch_size,epochs):
     model = Model()
-    model.create_model()
+    #model.create_model()
 
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
@@ -298,15 +321,50 @@ def train_primarily_model_fmnist(sumples_per_class, batch_size,epochs):
 
     for epoch in range(epochs):
         model.train(data_loader)
-        testcm,f1 = model.test()
+        testcm = model.test()
+        testcm = torch.tensor(testcm).item()/consts.action_space
+        print("test epoch {} accuracy {:.2f}".format(epoch, testcm))
+
+    model.save_model()
+
+
+def train_primarily_model_mnist(sumples_per_class, batch_size,epochs):
+    model = Model()
+    #model.create_model()
+
+    transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
+
+    mnist_data = datasets.MNIST(root=consts.rawdata,
+                                       train=True,
+                                       transform=transform,
+                                       download=False)
+
+    y = [i[1] for i in mnist_data]
+    mnist_dict = {i: list() for i in range(consts.action_space)}
+    for i in range(len(y)):
+        mnist_dict[y[i].item()].append(i)
+
+    subset_mnist_index = list()
+    for i in range(consts.action_space):
+        subset_mnist_index.append(random.sample(mnist_dict[i], sumples_per_class))
+
+    subset_indexes_flatten = [y for x in subset_mnist_index for y in x]
+    mnist_data_subset = torch.utils.data.Subset(mnist_data, subset_indexes_flatten)
+    data_loader = torch.utils.data.DataLoader(dataset=mnist_data_subset,
+                                              batch_size=batch_size)
+
+    for epoch in range(epochs):
+        model.train(data_loader)
+        testcm = model.test()
         testcm = torch.tensor(testcm)
-        print("test epoch {} accuracy {:.2f} f1 {}".format(epoch, torch.trace(testcm).item(), f1))
+        print("test epoch {} accuracy {:.2f}".format(epoch, torch.trace(testcm).item()))
 
     model.save_model()
 
 def train_primarily_model_cifar10(sumples_per_class, batch_size,epochs):
     model = Model()
-    model.create_model()
+    #model.create_model()
 
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.247, 0.243, 0.261))])
@@ -332,16 +390,16 @@ def train_primarily_model_cifar10(sumples_per_class, batch_size,epochs):
 
     for epoch in range(epochs):
         model.train(data_loader)
-        testcm,f1 = model.test()
-        testcm = torch.tensor(testcm)
-        print("test epoch {} accuracy {:.2f} f1 {}".format(epoch, torch.trace(testcm).item(), f1))
+        testcm = model.test()
+        testcm = torch.tensor(testcm).item()/consts.action_space
+        print("test epoch {} accuracy {:.2f}".format(epoch, testcm))
 
     model.save_model()
 
 
 def train_label_0_model_fmnist(sumples_per_class, batch_size,epochs):
     model = Model()
-    model.create_model()
+    #model.create_model()
 
     transform = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
@@ -367,10 +425,10 @@ def train_label_0_model_fmnist(sumples_per_class, batch_size,epochs):
 
     for epoch in range(epochs):
         model.train(data_loader)
-        cm,f1 = model.test()
+        cm = model.test()
         testcm = torch.tensor(cm)
-        acc_label_0 = cm[0][0] / cm.sum(axis=1)[0]
-        print("test epoch {} accuracy label 0 {:.2f} f1 {}".format(epoch, acc_label_0, f1))
+        acc_label_0 = cm[9][9]
+        print("test epoch {} accuracy label 0 {:.2f}".format(epoch, acc_label_0))
 
     subset_mnist_index = list()
     subset_mnist_index.append(random.sample(mnist_dict[0], 20))
@@ -382,10 +440,10 @@ def train_label_0_model_fmnist(sumples_per_class, batch_size,epochs):
 
     for epoch in range(3):
         model.train(data_loader)
-        cm,f1 = model.test()
+        cm = model.test()
         testcm = torch.tensor(cm)
-        acc_label_0 = cm[0][0] / cm.sum(axis=1)[0]
-        print("test epoch {} accuracy label 0 {:.2f} f1 {}".format(epoch, acc_label_0, f1))
+        acc_label_0 = cm[9][9]
+        print("test epoch {} accuracy label 0 {:.2f}".format(epoch, acc_label_0))
 
 # class Singleton(type):
 #     _instances = {}

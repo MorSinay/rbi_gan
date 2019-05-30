@@ -49,6 +49,7 @@ class Agent(object):
         #self.start_time = consts.start_time
 
         self.mix = self.delta
+        self.gamma = args.gamma
         #self.min_loop = 1. / 44
         #self.hidden_state = args.hidden_features_rnn
 
@@ -75,9 +76,10 @@ class Agent(object):
 #        self.screen_dir = self.dirs_locks.screen_dir
         self.readlock = self.dirs_locks.readlock
 
-        np.save(self.writelock, 0)
-        np.save(self.episodelock, 0)
-        np.save(self.readlock, [])
+        if not player:
+            np.save(self.writelock, 0)
+            np.save(self.episodelock, 0)
+            np.save(self.readlock, [])
 
         # if not player:
         #     try:
