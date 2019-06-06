@@ -10,7 +10,10 @@ import torch.nn as nn
 from config import consts, args, lock_file, release_file
 import psutil
 
-from model import BehavioralNet, DuelNet
+from model import BehavioralNet as BehavioralNetRbi
+from model import DuelNet as DuelNetRbi
+from model_ddpg import BehavioralNet as BehavioralNetDdpg
+from model_ddpg import DuelNet as DuelNetDdpg
 
 from memory_gan import Memory, ReplayBatchSampler
 from agent import Agent
@@ -33,9 +36,9 @@ class GANAgent(Agent):
         use_cuda = not args.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if use_cuda else "cpu")
 
-        self.beta_net = BehavioralNet()
-        self.value_net = DuelNet()
-        self.target_net = DuelNet()
+        self.beta_net = choose_behavioral_net()()
+        self.value_net = choose_duel_net()()
+        self.target_net = choose_duel_net()()
 
         if torch.cuda.device_count() > 1:
             self.beta_net = nn.DataParallel(self.beta_net)
@@ -49,7 +52,6 @@ class GANAgent(Agent):
 
         self.pi_rand = np.ones(self.action_space, dtype=np.float32) / self.action_space
         self.q_loss = nn.SmoothL1Loss(reduction='none')
-        self.kl_loss = nn.KLDivLoss()
 
         if player:
             # play variables
@@ -116,7 +118,7 @@ class GANAgent(Agent):
 
         return state['aux']
 
-    def learn(self, n_interval, n_tot):
+    def learn_rbi(self, n_interval, n_tot):
         self.save_checkpoint(self.snapshot_path, {'n': 0})
 
         self.beta_net.train()
@@ -139,10 +141,8 @@ class GANAgent(Agent):
             s_tag = sample['s_tag'].to(self.device, non_blocking=True)
             pi_tag = sample['pi_tag'].to(self.device, non_blocking=True)
 
-
             beta = self.beta_net(s)
-            beta_policy = F.softmax(beta.detach(), dim=1) #debug
-
+            beta_policy = F.softmax(beta.detach(), dim=1)  # debug
             beta_log = F.log_softmax(beta, dim=1)
             loss_beta = (-beta_log * pi).sum(dim=1).mean()
 
@@ -155,9 +155,9 @@ class GANAgent(Agent):
             else:
                 target_value = r + (1 - t) * self.gamma * (pi_tag * x_tag).sum(dim=1)
 
-            #pi_explore = (self.epsilon * self.pi_rand + (1 - self.epsilon) * pi).to(self.device)
+            # pi_explore = (self.epsilon * self.pi_rand + (1 - self.epsilon) * pi).to(self.device)
             value = (pi_explore * x).sum(dim=1)
-            #value = (pi * x).sum(dim=1)
+            # value = (pi * x).sum(dim=1)
             loss_q = self.q_loss(value, target_value).mean()
 
             self.optimizer_beta.zero_grad()
@@ -222,32 +222,105 @@ class GANAgent(Agent):
 
         print("Learn Finish")
 
-    def actor_critic_learn(self, s, pi, s_tag, r, t, pi_tag, pi_explore):
-        beta = self.beta_net(s)
-        beta_log = F.log_softmax(beta, dim=1)
-        loss_beta = (-beta_log * pi).sum(dim=1).mean()
 
-        # dqn
-        x_tag = self.target_net(s_tag).detach()
-        x = self.value_net(s)
+    def learn_ddpg(self, n_interval, n_tot):
+        self.save_checkpoint(self.snapshot_path, {'n': 0})
 
-        if args.rl_metric == 'mc':
-            target_value = r
-        else:
-            target_value = r + (1 - t) * self.gamma * (pi_tag * x_tag).sum(dim=1)
+        self.beta_net.train()
+        self.value_net.train()
+        self.target_net.eval()
 
-        # pi_explore = (self.epsilon * self.pi_rand + (1 - self.epsilon) * pi).to(self.device)
-        value = (pi_explore * x).sum(dim=1)
-        # value = (pi * x).sum(dim=1)
-        loss_q = self.q_loss(value, target_value).mean()
+        results = {'n': [], 'loss_q': [], 'loss_beta': [], 'a_player': [], 'loss_std': [],
+                   'r': [], 's': [], 't': [], 'pi': [], 's_tag': [], 'pi_tag': [], 'acc': [], 'beta': [],
+                   'q': []}
 
-        self.optimizer_beta.zero_grad()
-        loss_beta.backward()
-        self.optimizer_beta.step()
+        for n, sample in tqdm(enumerate(self.train_loader)):
 
-        self.optimizer_value.zero_grad()
-        loss_q.backward()
-        self.optimizer_value.step()
+            s = sample['s'].to(self.device, non_blocking=True)
+            assert(s.shape[-1] == 100), "state error {}".format(s.shape)
+            a = sample['a'].to(self.device, non_blocking=True)
+            r = sample['r'].to(self.device, non_blocking=True)
+            t = sample['t'].to(self.device, non_blocking=True)
+            pi_explore = sample['pi_explore'].to(self.device, non_blocking=True)
+            pi = sample['pi'].to(self.device, non_blocking=True)
+            acc = sample['acc'].to(self.device, non_blocking=True)
+            s_tag = sample['s_tag'].to(self.device, non_blocking=True)
+            pi_tag = sample['pi_tag'].to(self.device, non_blocking=True)
+
+            beta = self.beta_net(s)
+            beta_policy = F.softmax(beta, dim=1)
+            q_value = self.value_net(s, pi_explore).view(-1)
+
+            if args.rl_metric == 'mc':
+                target_value = r
+            else:
+                q_value_tag = self.value_net(s_tag, beta_policy.detach()).detach()
+                target_value = r + (1 - t) * self.gamma * q_value_tag.view(-1)
+
+            loss_q = self.q_loss(q_value, target_value).mean()
+            loss_beta = -self.value_net(s, beta_policy).mean()
+
+            self.optimizer_beta.zero_grad()
+            loss_beta.backward()
+            self.optimizer_beta.step()
+
+            self.optimizer_value.zero_grad()
+            loss_q.backward()
+            self.optimizer_value.step()
+
+            # collect actions statistics
+            if not n % 50:
+                # add results
+                results['a_player'].append(a.data.cpu().numpy())
+                results['r'].append(r.data.cpu().numpy())
+                results['s'].append(s.data.cpu().numpy())
+                results['t'].append(t.data.cpu().numpy())
+                results['pi'].append(pi.data.cpu().numpy())
+                results['acc'].append(acc.data.cpu().numpy())
+                results['s_tag'].append(s_tag.data.cpu().numpy())
+                results['pi_tag'].append(pi_tag.data.cpu().numpy())
+                results['beta'].append(beta_policy.detach().cpu().numpy())
+                results['q'].append(q_value.detach().cpu().numpy())
+
+                # add results
+                results['loss_beta'].append(loss_beta.data.cpu().numpy())
+                results['loss_q'].append(loss_q.data.cpu().numpy())
+                results['loss_std'].append(0)
+
+                if not n % self.update_memory_interval:
+                    # save agent state
+                    self.save_checkpoint(self.snapshot_path, {'n': n})
+
+                if not n % self.update_target_interval:
+                    # save agent state
+                    self.target_net.load_state_dict(self.value_net.state_dict())
+
+                if not n % n_interval:
+                    results['a_player'] = np.concatenate(results['a_player'])
+                    results['r'] = np.concatenate(results['r'])
+                    results['s'] = np.concatenate(results['s'])
+                    results['t'] = np.concatenate(results['t'])
+                    #results['pi'] = np.concatenate(results['pi'])
+                    results['acc'] = np.average(np.concatenate(results['acc']))
+                    results['s_tag'] = np.concatenate(results['s_tag'])
+                   # results['pi_tag'] = np.concatenate(results['pi_tag'])
+
+                    results['pi'] = np.average(np.concatenate(results['pi']), axis=0).flatten()
+                    results['pi_tag'] = np.average(np.concatenate(results['pi_tag']), axis=0).flatten()
+                    results['beta'] = np.average(np.concatenate(results['beta']), axis=0).flatten()
+                    results['q'] = np.average(np.concatenate(results['q']), axis=0).flatten()
+                    results['n'] = n
+
+                    yield results
+                    self.beta_net.train()
+                    self.value_net.train()
+                    results = {key: [] for key in results}
+
+                    if n >= n_tot:
+                        self.save_checkpoint(self.snapshot_path, {'n': n})
+                        break
+
+        print("Learn Finish")
 
     def multiplay(self):
 
@@ -290,11 +363,28 @@ class GANAgent(Agent):
                 self.value_net.eval()
 
             s = torch.cat([env.state.unsqueeze(0) for env in mp_env]).to(self.device)
+            assert (s.shape[-1] == self.action_space*self.action_space), "state error {}".format(s.shape)
 
             if self.n_offset <= self.n_rand:
                 pi_explore = np.repeat(self.pi_rand, n_players, axis=0).reshape(n_players,self.action_space)
                 pi = pi_explore
-            else:
+            elif self.algorithm == 'ddpg':
+                beta = self.beta_net(s)
+                beta = F.softmax(beta.detach(), dim=1)
+                beta = beta.data.cpu().numpy().reshape(-1,self.action_space)
+
+                pi = beta.copy()
+
+                #to assume there is no zero policy
+                pi = (1 - self.eta) * pi + self.eta / self.action_space
+
+                explore = np.random.rand(n_players, self.action_space)
+                explore = np.exp(explore) / np.sum(np.exp(explore), axis=1).reshape(n_players, 1)
+
+                pi_explore = self.epsilon * explore + (1 - self.epsilon) * pi
+                pi_explore = pi_explore / np.repeat(pi_explore.sum(axis=1, keepdims=True), self.action_space, axis=1)
+
+            elif self.algorithm == 'rbi':
                 beta = self.beta_net(s)
                 beta = F.softmax(beta.detach(), dim=1)
                 beta = beta.data.cpu().numpy().reshape(-1,self.action_space)
@@ -330,6 +420,9 @@ class GANAgent(Agent):
 
                 pi_explore = self.epsilon * explore + (1 - self.epsilon) * pi
                 pi_explore = pi_explore / np.repeat(pi_explore.sum(axis=1, keepdims=True), self.action_space, axis=1)
+
+            else:
+                raise ImportError
 
             for i in range(n_players):
 
@@ -407,9 +500,44 @@ class GANAgent(Agent):
     def train(self, n_interval, n_tot):
         return
 
-    def evaluate(self, eval_pi=None):
+    def evaluate_pi(self, eval_pi):
 
-        #time.sleep(15)
+        results = {'n': [], 'pi': [], 'beta': [], 'q': [], 'acc': [], 'k': [], 'r': [], 'score': []}
+
+        self.env.reset()
+        self.beta_net.eval()
+        self.value_net.eval()
+
+        for _ in tqdm(itertools.count()):
+
+            pi = np.expand_dims(eval_pi, axis=0)
+            self.env.step_policy(pi)
+
+            results['pi'].append(pi)
+            results['beta'].append(np.zeros_like(pi))
+            results['q'].append(np.zeros_like(pi))
+            results['r'].append(self.env.reward)
+            results['acc'].append(self.env.acc)
+
+            if self.env.t:
+                break
+
+        if self.env.t:
+            results['pi'] = np.average(np.asarray(results['pi']), axis=0).flatten()
+            results['beta'] = np.average(np.asarray(results['beta']), axis=0).flatten()
+            results['q'] = np.average(np.asarray(results['q']), axis=0).flatten()
+            results['acc'] = np.asarray(results['acc'])
+            results['r'] = np.asarray(results['r'])
+
+            results['n'] = self.n_offset
+            results['k'] = self.env.k
+            results['score'] = (results['pi'] * results['q']).sum(dim=1)
+            #results['acc'] = self.env.acc
+
+            yield results
+            results = {key: [] for key in results}
+
+    def evaluate_rbi(self):
 
         try:
             self.load_checkpoint(self.snapshot_path)
@@ -417,7 +545,7 @@ class GANAgent(Agent):
             print("Error in load checkpoint")
             pass
 
-        results = {'n': [], 'pi': [], 'beta': [], 'q': [], 'acc': [], 'k': [], 'r': []}
+        results = {'n': [], 'pi': [], 'beta': [], 'q': [], 'acc': [], 'k': [], 'r': [], 'score': []}
 
         #for _ in tqdm(itertools.count()):
         for _ in itertools.count():
@@ -426,7 +554,7 @@ class GANAgent(Agent):
                 self.load_checkpoint(self.snapshot_path)
             except:
                 print("Error in load checkpoint")
-                continue
+                pass
 
             self.env.reset()
             self.beta_net.eval()
@@ -444,9 +572,7 @@ class GANAgent(Agent):
                 q = self.value_net(s)
                 q = q.data.cpu().numpy().reshape(self.action_space)
 
-                if eval_pi is not None:
-                    pi = eval_pi
-                elif self.n_offset <= self.n_rand:
+                if self.n_offset <= self.n_rand:
                     pi = self.pi_rand
                 else:
                     pi = beta.copy()
@@ -464,9 +590,6 @@ class GANAgent(Agent):
                         pi[a] += delta_a
                         q_temp[a] = -1e11
 
-                    #pi_greed = np.zeros(self.action_space)
-                    #pi_greed[np.argmax(q)] = 1
-                    #pi = (1-self.mix) * pi + self.mix * pi_greed
                     pi = (1 - self.mix) * pi + self.mix * self.pi_rand
                     pi = pi.clip(0, 1)
                     pi = pi / pi.sum()
@@ -492,14 +615,102 @@ class GANAgent(Agent):
 
                 results['n'] = self.n_offset
                 results['k'] = self.env.k
+                results['score'] = (results['pi'] * results['q']).sum()
                 #results['acc'] = self.env.acc
 
                 yield results
                 results = {key: [] for key in results}
 
-            if eval_pi is not None:
+            if self.n_offset >= args.n_tot:
                 break
+
+    def evaluate_ddpg(self):
+
+        try:
+            self.load_checkpoint(self.snapshot_path)
+        except:
+            print("Error in load checkpoint")
+            pass
+
+        results = {'n': [], 'pi': [], 'beta': [], 'q': [], 'acc': [], 'k': [], 'r': [], 'score': []}
+
+        #for _ in tqdm(itertools.count()):
+        for _ in itertools.count():
+
+            try:
+                self.load_checkpoint(self.snapshot_path)
+            except:
+                print("Error in load checkpoint")
+                continue
+
+            self.env.reset()
+            self.beta_net.eval()
+            self.value_net.eval()
+
+            for _ in tqdm(itertools.count()):
+
+            #while not self.env.t:
+                s = self.env.state.to(self.device)
+
+                beta = self.beta_net(s)
+                beta = F.softmax(beta.detach(), dim=1)
+
+                q = self.value_net(s, beta)
+
+                beta = beta.data.cpu().numpy().reshape(self.action_space)
+                q = q.data.cpu().numpy()
+
+                if self.n_offset <= self.n_rand:
+                    pi = self.pi_rand
+                else:
+                    pi = beta
+
+                pi = np.expand_dims(pi, axis=0)
+                self.env.step_policy(pi)
+
+                results['pi'].append(pi)
+                results['beta'].append(beta)
+                results['q'].append(q)
+                results['r'].append(self.env.reward)
+                results['acc'].append(self.env.acc)
+
+                if self.env.t:
+                    break
+
+            if self.env.t:
+                results['pi'] = np.average(np.asarray(results['pi']), axis=0).flatten()
+                results['beta'] = np.average(np.asarray(results['beta']), axis=0).flatten()
+                results['q'] = np.average(np.asarray(results['q']), axis=0).flatten()
+                results['acc'] = np.asarray(results['acc'])
+                results['r'] = np.asarray(results['r'])
+
+                results['n'] = self.n_offset
+                results['k'] = self.env.k
+                results['score'] = results['q']
+                #results['acc'] = self.env.acc
+
+                yield results
+                results = {key: [] for key in results}
 
             if self.n_offset >= args.n_tot:
                 break
 
+
+def choose_behavioral_net():
+    if args.algorithm == 'ddpg':
+        return BehavioralNetDdpg
+    elif args.algorithm == 'rbi':
+        return BehavioralNetRbi
+    else:
+        print(args.algorithm)
+        raise ImportError
+
+
+def choose_duel_net():
+    if args.algorithm == 'ddpg':
+        return DuelNetDdpg
+    elif args.algorithm == 'rbi':
+        return DuelNetRbi
+    else:
+        print(args.algorithm)
+        raise ImportError

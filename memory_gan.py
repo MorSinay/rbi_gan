@@ -23,7 +23,7 @@ class Memory(torch.utils.data.Dataset):
         if sample['traj'] is next_sample['traj'] and not sample['t']:
             s_tag = np.array(next_sample['st'])
         else:
-            s_tag = np.zeros((self.action_space, self.action_space), dtype=np.float32)
+            s_tag = np.zeros_like(np.array(sample['st']), dtype=np.float32)
 
         return {'s': torch.from_numpy(np.array(sample['st'])), 'r': torch.from_numpy(np.array(sample['r'])),
                 'a': torch.from_numpy(np.array(sample['a'])), 't': torch.from_numpy(np.array(sample['t'])),
@@ -67,7 +67,7 @@ class ReplayBatchSampler(object):
             np.save(fread, [])
             release_file(fread)
             # if flag:
-            #traj_sorted = list(range(500))
+            #traj_sorted = list(range(1000))
             #
             if not len(traj_sorted):
                 #print("traj_sorted empty")

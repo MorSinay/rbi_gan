@@ -76,6 +76,7 @@ class Agent(object):
 #        self.screen_dir = self.dirs_locks.screen_dir
         self.readlock = self.dirs_locks.readlock
 
+        self.algorithm = args.algorithm
         if not player:
             np.save(self.writelock, 0)
             np.save(self.episodelock, 0)
@@ -97,8 +98,22 @@ class Agent(object):
     def train(self, n_interval, n_tot):
         raise NotImplementedError
 
-    def evaluate(self):
-        raise NotImplementedError
+    def evaluate(self, pi = None):
+        if args.algorithm == 'ddpg':
+            return self.evaluate_ddpg()
+        elif args.algorithm == 'rbi':
+            return self.evaluate_rbi()
+        else:
+            return self.evaluate_pi()
+
+    def learn(self, n_interval, n_tot):
+        if args.algorithm == 'ddpg':
+            return self.learn_ddpg(args.checkpoint_interval, args.n_tot)
+        elif args.algorithm == 'rbi':
+            return self.learn_rbi(args.checkpoint_interval, args.n_tot)
+        else:
+            print(args.algorithm)
+            raise ImportError
 
     # def set_player(self, player, cmin=None, cmax=None, delta=None,
     #                epsilon=None, behavioral_avg_score=None,

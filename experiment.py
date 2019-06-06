@@ -10,7 +10,7 @@ from tqdm import tqdm
 import time
 
 from config import consts, args, DirsAndLocksSingleton
-from gan_rl_agent import GANAgent as GanActionAgent
+#from gan_rl_agent import GANAgent as GanActionAgent
 from gan_rl_policy_agent import GANAgent as GanPolicyAgent
 
 from logger import logger
@@ -102,9 +102,9 @@ class Experiment(object):
             self.writer.close()
 
     def choose_agent(self):
-        if args.algorithm == 'action':
-            return GanActionAgent
-        elif args.algorithm == 'policy':
+        if args.algorithm == 'ddpg':
+            return GanPolicyAgent
+        elif args.algorithm == 'rbi':
             return GanPolicyAgent
         else:
             print(args.algorithm)
@@ -132,6 +132,7 @@ class Experiment(object):
 
         # define experiment generators
         learn = agent.learn(args.checkpoint_interval, args.n_tot)
+
         agent.save_checkpoint(agent.snapshot_path, {'n': agent.n_offset})
 
         batch_explore = args.batch
@@ -141,7 +142,7 @@ class Experiment(object):
             print("wait for first samples")
 
 
-            if len(os.listdir(self.dirs_locks.trajectory_dir)) > 64:
+            if len(os.listdir(self.dirs_locks.trajectory_dir)) > 20:
                 hold = 0
 
             time.sleep(5)
@@ -296,6 +297,7 @@ class Experiment(object):
             pi_tag += "|%.2f\t" % pi_tag_player[i]
             pi += "|%.2f\t" % pi_player[i]
             beta += "|%.2f\t" % beta_player[i]
+        for i in range(len(q_player)):
             q += "|%.2f\t" % q_player[i]
         pi += "|"
         pi_tag += "|"
@@ -310,6 +312,7 @@ class Experiment(object):
         time.sleep(15)
 
         agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint)
+
         player = agent.evaluate(pi)
 
         for n, train_results in tqdm(enumerate(player)):
@@ -325,13 +328,14 @@ class Experiment(object):
 
                 self.writer.add_scalar('evaluation' + rand_param + '/k', train_results['k'], frame)
                 self.writer.add_scalar('evaluation' + rand_param + '/acc', train_results['acc'][-1], frame)
-                x = (train_results['pi'] * train_results['q']).sum(dim=1)
-                self.writer.add_scalar('evaluation' + rand_param + '/score', x, frame)
+                self.writer.add_scalar('evaluation' + rand_param + '/score', train_results['score'], frame)
 
                 game_str = 'evaluation' + rand_param + '_game_'+str(n)+'_frame_'+str(frame)
                 for i in range(len(train_results['pi'])):
                     self.writer.add_scalar(game_str + '/pi', train_results['pi'][i], i)
                     self.writer.add_scalar(game_str + '/beta', train_results['beta'][i], i)
+
+                for i in range(len(train_results['q'])):
                     self.writer.add_scalar(game_str + '/value', train_results['q'][i], i)
 
                 G = 0
@@ -369,7 +373,10 @@ class Experiment(object):
             for i in range(consts.action_space):
                 pi += "|%.2f\t" % train_results['pi'][i]
                 beta += "|%.2f\t" % train_results['beta'][i]
+
+            for i in range(len(train_results['q'])):
                 q += "|%.2f\t" % train_results['q'][i]
+
             pi += "|"
             beta += "|"
             q += "|"

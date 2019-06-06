@@ -4,7 +4,7 @@ from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
 from torchvision import datasets, transforms
 from memory_fmnist import Singleton_Mem
-from Net import Net
+from Net import Net, ResNet_Cifar
 import torch.optim as optim
 import os
 import random
@@ -239,7 +239,14 @@ class Model():
         self.optimizer.state = collections.defaultdict(dict)
 
     def create_model(self):
-        self.model = Net(self.outputs).to(self.device)
+        if args.benchmark == 'fmnist':
+            self.model = Net().to(self.device)
+        elif args.benchmark == 'mnist':
+            self.model = Net().to(self.device)
+        elif args.benchmark == 'cifar10':
+            self.model = ResNet_Cifar().to(self.device)
+        else:
+            assert False, "wrong benchmark"
         #self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr, betas=self.betas)
         self.optimizer = optim.SGD(self.model.parameters(), lr=self.lr)
         self.reset_model()

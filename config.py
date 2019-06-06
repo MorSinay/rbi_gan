@@ -5,6 +5,7 @@ import socket
 import os
 import pwd
 import fcntl
+from torchvision import datasets, transforms
 
 parser = argparse.ArgumentParser(description='gan_rl')
 username = pwd.getpwuid(os.geteuid()).pw_name
@@ -16,6 +17,32 @@ elif "root" == username:
     base_dir = r'/workspace/data/gan_rl/'
 else:
     base_dir = os.path.join('/data/', username, 'gan_rl', server)
+
+def download_data():
+
+    rawdata = '/dev/shm/elkayam'
+
+    if not os.path.exists(os.path.join(rawdata, 'fmnist')):
+        os.makedirs(os.path.join(rawdata, 'fmnist'))
+    if not os.path.exists(os.path.join(rawdata, 'mnist')):
+        os.makedirs(os.path.join(rawdata, 'mnist'))
+    if not os.path.exists(os.path.join(rawdata, 'cifar10')):
+        os.makedirs(os.path.join(rawdata, 'cifar10'))
+
+    transform = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
+
+    datasets.FashionMNIST(root=os.path.join(rawdata, 'fmnist'), train=True, transform=transform, download=True)
+    datasets.FashionMNIST(root=os.path.join(rawdata, 'fmnist'), train=False, transform=transform, download=True)
+
+    datasets.MNIST(root=os.path.join(rawdata, 'mnist'), train=True, transform=transform, download=True)
+    datasets.MNIST(root=os.path.join(rawdata, 'mnist'), train=False, transform=transform, download=True)
+
+    transform = transforms.Compose([transforms.ToTensor(),
+                                        transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.247, 0.243, 0.261))])
+
+    datasets.CIFAR10(root=os.path.join(rawdata, 'cifar10'), train=True, transform=transform, download=True)
+    datasets.CIFAR10(root=os.path.join(rawdata, 'cifar10'), train=False, transform=transform, download=True)
 
 
 def boolean_feature(feature, default, help):
@@ -61,7 +88,7 @@ parser.add_argument('--batch', type=int, default=64, help='Mini-Batch Size')
 # strings
 parser.add_argument('--game', type=str, default='active', help='active | generate')
 parser.add_argument('--identifier', type=str, default='debug', help='The name of the model to use')
-parser.add_argument('--algorithm', type=str, default='action', help='[action|policy]')
+parser.add_argument('--algorithm', type=str, default='rbi', help='[rbi|ddpg]')
 
 parser.add_argument('--acc', type=str, default='all', help='[all|label]')
 parser.add_argument('--reward', type=str, default='shape', help='[shape|no_shape|step]')
@@ -100,7 +127,7 @@ parser.add_argument('--cuda-default', type=int, default=0, help='Default GPU')
 #
 # #train parameters
 parser.add_argument('--update-target-interval', type=int, default=2500, metavar='STEPS', help='Number of traning iterations between q-target updates')
-parser.add_argument('--n-tot', type=int, default=1160000, metavar='STEPS', help='Total number of training steps')
+parser.add_argument('--n-tot', type=int, default=3160000, metavar='STEPS', help='Total number of training steps')
 parser.add_argument('--checkpoint-interval', type=int, default=5000, metavar='STEPS', help='Number of training steps between evaluations')
 # parser.add_argument('--random-initialization', type=int, default=2500, metavar='STEPS', help='Number of training steps in random policy')
 parser.add_argument('--player-replay-size', type=int, default=2500, help='Player\'s replay memory size')
@@ -154,6 +181,8 @@ class Consts(object):
         os.makedirs(modeldir)
     if not os.path.exists(outdir):
         os.makedirs(outdir)
+    if not os.path.exists(rawdata):
+        download_data()
 
 consts = Consts()
 
@@ -230,3 +259,4 @@ def lock_file(file):
 def release_file(fo):
     fcntl.lockf(fo, fcntl.LOCK_UN)
     fo.close()
+

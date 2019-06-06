@@ -5,10 +5,8 @@ all="${@:1}"
 
 loc=`dirname "%0"`
 
-echo $1 $2 $3
-
 case "$algorithm" in
-    ("action") bash $loc/Runs/run_gan_player.sh $all ;;
-    ("policy") bash $loc/Runs/run_gan_player.sh $all ;;
+    ("rbi") bash $loc/Runs/run_gan_player.sh $all ;;
+    ("ddpg") bash $loc/Runs/run_gan_player.sh $all ;;
     (*) echo "$algorithm: Not Implemented" ;;
 esac

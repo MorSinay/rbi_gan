@@ -20,6 +20,7 @@ class Memory(torch.utils.data.Dataset):
             data_set = datasets.FashionMNIST(root=self.rawdata, train=True, transform=transform, download=False)
 
         elif benchmark == 'mnist':
+
             transform = transforms.Compose([transforms.ToTensor(),
                                             transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
 
@@ -83,4 +84,3 @@ class Singleton_Mem(metaclass=Singleton):
     def get_item(self,action_batch):
 
         return self.memory.get_item(action_batch)
-
