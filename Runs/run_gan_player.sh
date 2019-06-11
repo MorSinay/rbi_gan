@@ -10,15 +10,7 @@ echo $1 $2 $3 $4
 
 loc=`dirname "%0"`
 
-tensor=""
-
-if [ $game = "active" ]; then
-    tensor="--no-tensorboard"
-fi
-
-if [ $game = "generate" ]; then
-    tensor="--no-tensorboard"
-fi
+tensor="--no-tensorboard"
 
 args="--algorithm=$algorithm"
 

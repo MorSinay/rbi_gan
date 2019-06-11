@@ -11,60 +11,30 @@ class Agent(object):
 
     def __init__(self, exp_name, checkpoint=None, player=False):
         # parameters
-        # self.discount = args.discount
-        self.update_target_interval = args.update_target_interval
         self.update_memory_interval = args.update_memory_interval
         self.load_memory_interval = args.load_memory_interval
         self.dirs_locks = DirsAndLocksSingleton(exp_name)
         self.action_space = consts.action_space
-        # self.skip = args.skip
-        # self.termination_reward = args.termination_reward
         self.n_steps = args.n_steps
-        #self.reward_shape = args.reward_shape
         self.player_replay_size = 5 #args.player_replay_size
         self.cmin = args.cmin
         self.cmax = args.cmax
-        #self.history_length= args.history_length
-        #self.random_initialization = args.random_initialization
         self.epsilon = float(args.epsilon * self.action_space / (self.action_space - 1))
         self.eta = args.eta
         self.delta = args.delta
         self.player = player
-        #self.priority_beta = args.priority_beta
-        #self.priority_alpha = args.priority_alpha
-        #self.epsilon_a = args.epsilon_a
         self.cuda_id = args.cuda_default
-        #self.behavioral_avg_frame = 1
-        #self.behavioral_avg_score = -1
-        #self.entropy_loss = float((1 - (1 / (1 + (self.action_space - 1) * np.exp(-args.softmax_diff)))) * (self.action_space / (self.action_space - 1)))
         self.batch = args.batch
         self.replay_memory_size = args.replay_memory_size
-        #self.actor_index = args.actor_index
         self.n_players = args.n_players
-        #self.player = args.player
         self.n_tot = args.n_tot
         self.n_rand = args.n_rand
-        #self.max_length = consts.max_length[args.game]
-        #self.max_score = consts.max_score[args.game]
-        #self.start_time = consts.start_time
 
         self.mix = self.delta
         self.gamma = args.gamma
-        #self.min_loop = 1. / 44
-        #self.hidden_state = args.hidden_features_rnn
-
-        #self.seq_length = args.seq_length
-        #if args.target == 'tde':
-        #    self.seq_length += self.n_steps
-
-        #self.burn_in = args.burn_in
-        #self.seq_overlap = args.seq_overlap
-
-        #self.rec_type = consts.rec_type
 
         self.checkpoint = checkpoint
         self.root_dir = self.dirs_locks.root
-        # self.best_player_dir = os.path.join(root_dir, "best")
         self.snapshot_path = self.dirs_locks.snapshot_path
         self.explore_dir = self.dirs_locks.explore_dir
         self.list_dir = self.dirs_locks.list_dir
@@ -73,7 +43,6 @@ class Agent(object):
         self.device = torch.device("cuda:%d" % self.cuda_id)
 
         self.trajectory_dir = self.dirs_locks.trajectory_dir
-#        self.screen_dir = self.dirs_locks.screen_dir
         self.readlock = self.dirs_locks.readlock
 
         self.algorithm = args.algorithm
@@ -98,22 +67,11 @@ class Agent(object):
     def train(self, n_interval, n_tot):
         raise NotImplementedError
 
-    def evaluate(self, pi = None):
-        if args.algorithm == 'ddpg':
-            return self.evaluate_ddpg()
-        elif args.algorithm == 'rbi':
-            return self.evaluate_rbi()
-        else:
-            return self.evaluate_pi()
+    def evaluate(self):
+        raise NotImplementedError
 
     def learn(self, n_interval, n_tot):
-        if args.algorithm == 'ddpg':
-            return self.learn_ddpg(args.checkpoint_interval, args.n_tot)
-        elif args.algorithm == 'rbi':
-            return self.learn_rbi(args.checkpoint_interval, args.n_tot)
-        else:
-            print(args.algorithm)
-            raise ImportError
+        raise NotImplementedError
 
     # def set_player(self, player, cmin=None, cmax=None, delta=None,
     #                epsilon=None, behavioral_avg_score=None,

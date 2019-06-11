@@ -62,11 +62,7 @@ parser.add_argument('--no-cuda', action='store_true', default=False,
 # Env Arguments
 parser.add_argument('--env-batch-size', type=int, default=32, metavar='N',
                     help='env batch size for training (default: 64)')
-parser.add_argument('--env-max-k', type=int, default=11250, metavar='N',
-                    help='env game length (default: 6000)')
-parser.add_argument('--env-max-acc', type=float, default=0.89, metavar='N',
-                    help='env max acc per game (default: 0.89)')
-parser.add_argument('--env-iterations', type=int, default=1, metavar='N',
+parser.add_argument('--env-iterations', type=int, default=11250, metavar='N',
                     help='number of env iterations (default: 1)')
 
 # Model Arguments
@@ -89,9 +85,6 @@ parser.add_argument('--batch', type=int, default=64, help='Mini-Batch Size')
 parser.add_argument('--game', type=str, default='active', help='active | generate')
 parser.add_argument('--identifier', type=str, default='debug', help='The name of the model to use')
 parser.add_argument('--algorithm', type=str, default='rbi', help='[rbi|ddpg]')
-
-parser.add_argument('--acc', type=str, default='all', help='[all|label]')
-parser.add_argument('--reward', type=str, default='shape', help='[shape|no_shape|step]')
 
 parser.add_argument('--benchmark', type=str, default='mnist', help='[mnist|fmnist|cifar10]')
 #parser.add_argument('--base-dir', type=str, default=base_dir, help='Base directory for Logs and results')
@@ -126,7 +119,6 @@ parser.add_argument('--cpu-workers', type=int, default=48, help='How many CPUs w
 parser.add_argument('--cuda-default', type=int, default=0, help='Default GPU')
 #
 # #train parameters
-parser.add_argument('--update-target-interval', type=int, default=2500, metavar='STEPS', help='Number of traning iterations between q-target updates')
 parser.add_argument('--n-tot', type=int, default=3160000, metavar='STEPS', help='Total number of training steps')
 parser.add_argument('--checkpoint-interval', type=int, default=5000, metavar='STEPS', help='Number of training steps between evaluations')
 # parser.add_argument('--random-initialization', type=int, default=2500, metavar='STEPS', help='Number of training steps in random policy')
@@ -165,7 +157,7 @@ class Consts(object):
     #TODO Mor: what is this?
     mem_threshold = int(2e9)
 
-    rec_type = np.dtype([('fr', np.int64), ('st', np.float32, (1,action_space*action_space)), ('a', np.int64),
+    rec_type = np.dtype([('fr', np.int64),
                          ('r', np.float32), ('acc', np.float32), ('t', np.float32), ('pi', np.float32, action_space),
                          ('pi_explore', np.float32, action_space), ('traj', np.int64), ('ep', np.int64)])
 
