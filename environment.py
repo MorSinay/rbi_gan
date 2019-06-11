@@ -50,6 +50,8 @@ class Env(object):
             self.reward_func = self.reward_shape
         elif args.reward == 'no_shape':
             self.reward_func = self.reward_no_shape
+        elif args.reward == 'final':
+            self.reward_func = self.reward_final
         else:
             self.reward_func = self.reward_step
 
@@ -78,6 +80,12 @@ class Env(object):
             self.reward = self.list_reward[items[0]]
             self.list_level[items[0]] = True
 
+    def reward_final(self, next_acc):
+
+        self.reward = 0
+        if self.t == 1:
+            self.reward = min(-np.log2(next_acc), 10)
+
     def reset(self):
         #self.model.load_model()
         self.model.reset_model()
@@ -105,15 +113,15 @@ class Env(object):
             # TODO: maybe save a GPU to tun only the test
             cm = self.test_func()
             next_acc = self.acc_func(cm)
-            self.reward_func(next_acc)
             self.acc = next_acc
 
-            new_state = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-            self.state = torch.Tensor(new_state).view(-1, self.output_size * self.output_size)
             self.k += 1
-
             if self.k >= self.max_k or self.acc >= self.max_acc:
                 self.t = 1
+
+            self.reward_func(next_acc)
+            new_state = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+            self.state = torch.Tensor(new_state).view(-1, self.output_size * self.output_size)
 
     def step(self, a):
 
@@ -127,15 +135,17 @@ class Env(object):
             # TODO: maybe save a GPU to tun only the test
             cm = self.test_func()
             next_acc = self.acc_func(cm)
-            self.reward_func(next_acc)
             self.acc = next_acc
 
-            new_state = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-            self.state = torch.Tensor(new_state).view(-1, self.output_size * self.output_size)
             self.k += 1
 
             if self.k >= self.max_k or self.acc >= self.max_acc:
                 self.t = 1
+
+            self.reward_func(next_acc)
+            new_state = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+            self.state = torch.Tensor(new_state).view(-1, self.output_size * self.output_size)
+
 
 class Model():
     def __init__(self):

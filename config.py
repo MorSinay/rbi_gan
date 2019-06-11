@@ -91,7 +91,7 @@ parser.add_argument('--identifier', type=str, default='debug', help='The name of
 parser.add_argument('--algorithm', type=str, default='rbi', help='[rbi|ddpg]')
 
 parser.add_argument('--acc', type=str, default='all', help='[all|label]')
-parser.add_argument('--reward', type=str, default='shape', help='[shape|no_shape|step]')
+parser.add_argument('--reward', type=str, default='shape', help='[shape|no_shape|step|final]')
 
 parser.add_argument('--benchmark', type=str, default='mnist', help='[mnist|fmnist|cifar10]')
 #parser.add_argument('--base-dir', type=str, default=base_dir, help='Base directory for Logs and results')
