@@ -37,18 +37,22 @@ class GANAgent(Agent):
         self.device = torch.device("cuda" if use_cuda else "cpu")
 
         self.beta_net = choose_behavioral_net()()
+        self.beta_target_net = choose_behavioral_net()()
         self.value_net = choose_duel_net()()
         self.target_net = choose_duel_net()()
 
         if torch.cuda.device_count() > 1:
             self.beta_net = nn.DataParallel(self.beta_net)
+            self.beta_target_net = nn.DataParallel(self.beta_target_net)
             self.value_net = nn.DataParallel(self.value_net)
             self.target_net = nn.DataParallel(self.target_net)
 
         self.beta_net.to(self.device)
+        self.beta_target_net.to(self.device)
         self.value_net.to(self.device)
         self.target_net.to(self.device)
         self.target_net.load_state_dict(self.value_net.state_dict())
+        self.beta_target_net.load_state_dict(self.beta_net.state_dict())
 
         self.pi_rand = np.ones(self.action_space, dtype=np.float32) / self.action_space
         self.q_loss = nn.SmoothL1Loss(reduction='none')
@@ -80,6 +84,7 @@ class GANAgent(Agent):
 
         if torch.cuda.device_count() > 1:
             state = {'beta_net': self.beta_net.module.state_dict(),
+                     'beta_target_net': self.beta_target_net.module.state_dict(),
                      'value_net': self.value_net.module.state_dict(),
                      'target_net': self.target_net.module.state_dict(),
                      'optimizer_value': self.optimizer_value.state_dict(),
@@ -87,6 +92,7 @@ class GANAgent(Agent):
                      'aux': aux}
         else:
             state = {'beta_net': self.beta_net.state_dict(),
+                     'beta_target_net': self.beta_target_net.state_dict(),
                      'value_net': self.value_net.state_dict(),
                      'target_net': self.target_net.state_dict(),
                      'optimizer_value': self.optimizer_value.state_dict(),
@@ -105,10 +111,12 @@ class GANAgent(Agent):
 
         if torch.cuda.device_count() > 1:
             self.beta_net.module.load_state_dict(state['beta_net'])
+            self.beta_target_net.module.load_state_dict(state['beta_target_net'])
             self.value_net.module.load_state_dict(state['value_net'])
             self.target_net.module.load_state_dict(state['target_net'])
         else:
             self.beta_net.load_state_dict(state['beta_net'])
+            self.beta_target_net.load_state_dict(state['beta_target_net'])
             self.value_net.load_state_dict(state['value_net'])
             self.target_net.load_state_dict(state['target_net'])
 
@@ -122,6 +130,7 @@ class GANAgent(Agent):
         self.save_checkpoint(self.snapshot_path, {'n': 0})
 
         self.beta_net.train()
+        self.beta_target_net.eval()
         self.value_net.train()
         self.target_net.eval()
 
@@ -194,6 +203,7 @@ class GANAgent(Agent):
                 if not n % self.update_target_interval:
                     # save agent state
                     self.target_net.load_state_dict(self.value_net.state_dict())
+                    self.beta_target_net.load_state_dict(self.beta_net.state_dict())
 
                 if not n % n_interval:
                     results['a_player'] = np.concatenate(results['a_player'])
@@ -227,6 +237,7 @@ class GANAgent(Agent):
         self.save_checkpoint(self.snapshot_path, {'n': 0})
 
         self.beta_net.train()
+        self.beta_target_net.eval()
         self.value_net.train()
         self.target_net.eval()
 
@@ -247,6 +258,9 @@ class GANAgent(Agent):
             s_tag = sample['s_tag'].to(self.device, non_blocking=True)
             pi_tag = sample['pi_tag'].to(self.device, non_blocking=True)
 
+            self.optimizer_beta.zero_grad()
+            self.optimizer_value.zero_grad()
+
             beta = self.beta_net(s)
             beta_policy = F.softmax(beta, dim=1)
             q_value = self.value_net(s, pi_explore).view(-1)
@@ -254,19 +268,16 @@ class GANAgent(Agent):
             if args.rl_metric == 'mc':
                 target_value = r
             else:
-                q_value_tag = self.value_net(s_tag, beta_policy.detach()).detach()
+                q_value_tag = self.target_net(s_tag, F.softmax(self.beta_target_net(s), dim=1).detach()).detach()
                 target_value = r + (1 - t) * self.gamma * q_value_tag.view(-1)
 
             loss_q = self.q_loss(q_value, target_value).mean()
-            loss_beta = -self.value_net(s, beta_policy).mean()
-
-            self.optimizer_beta.zero_grad()
-            loss_beta.backward()
-            self.optimizer_beta.step()
-
-            self.optimizer_value.zero_grad()
             loss_q.backward()
             self.optimizer_value.step()
+
+            loss_beta = -self.value_net(s, beta_policy).mean()
+            loss_beta.backward()
+            self.optimizer_beta.step()
 
             # collect actions statistics
             if not n % 50:
@@ -294,6 +305,7 @@ class GANAgent(Agent):
                 if not n % self.update_target_interval:
                     # save agent state
                     self.target_net.load_state_dict(self.value_net.state_dict())
+                    self.beta_target_net.load_state_dict(self.beta_net.state_dict())
 
                 if not n % n_interval:
                     results['a_player'] = np.concatenate(results['a_player'])
@@ -379,7 +391,8 @@ class GANAgent(Agent):
                 pi = (1 - self.eta) * pi + self.eta / self.action_space
 
                 explore = np.random.rand(n_players, self.action_space)
-                explore = np.exp(explore) / np.sum(np.exp(explore), axis=1).reshape(n_players, 1)
+                #explore = np.exp(explore) / np.sum(np.exp(explore), axis=1).reshape(n_players, 1)
+                explore = explore / np.sum(explore, axis=1).reshape(n_players, 1)
 
                 pi_explore = self.epsilon * explore + (1 - self.epsilon) * pi
                 pi_explore = pi_explore / np.repeat(pi_explore.sum(axis=1, keepdims=True), self.action_space, axis=1)
@@ -714,3 +727,10 @@ def choose_duel_net():
     else:
         print(args.algorithm)
         raise ImportError
+
+
+def soft_update(target, source, tau):
+    for target_param, param in zip(target.parameters(), source.parameters()):
+        target_param.data.copy_(
+            target_param.data * (1.0 - tau) + param.data * tau
+        )

@@ -59,8 +59,9 @@ class Env(object):
         return np.trace(cm)/np.sum(cm)
 
     def label_calc(self, cm):
-        label = 9
-        return cm[label][label]/cm.sum(axis=1)[label]
+        label1 = 9
+        label2 = 5
+        return 0.5*cm[label1][label1]/cm.sum(axis=1)[label1] + 0.5*cm[label2][label2]/cm.sum(axis=1)[label2]
 
     def reward_shape(self, next_acc):
         self.reward = np.float32((next_acc - self.acc) / (1 - self.acc))
