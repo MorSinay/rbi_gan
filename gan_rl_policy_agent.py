@@ -396,7 +396,7 @@ class GANAgent(Agent):
 
                 explore = np.random.rand(n_players, self.action_space)
                 #explore = np.exp(explore) / np.sum(np.exp(explore), axis=1).reshape(n_players, 1)
-                explore = explore / np.sum(explore, axis=1).reshape(n_players, 1)
+                #explore = explore / np.sum(explore, axis=1).reshape(n_players, 1)
 
                 pi_explore = self.epsilon * explore + (1 - self.epsilon) * pi
                 pi_explore = pi_explore / np.repeat(pi_explore.sum(axis=1, keepdims=True), self.action_space, axis=1)
@@ -433,7 +433,7 @@ class GANAgent(Agent):
                 pi = pi / np.repeat(pi.sum(axis=1, keepdims=True), self.action_space, axis=1)
 
                 explore = np.random.rand(n_players, self.action_space)
-                explore = np.exp(explore) / np.sum(np.exp(explore), axis=1).reshape(n_players, 1)
+                #explore = np.exp(explore) / np.sum(np.exp(explore), axis=1).reshape(n_players, 1)
 
                 pi_explore = self.epsilon * explore + (1 - self.epsilon) * pi
                 pi_explore = pi_explore / np.repeat(pi_explore.sum(axis=1, keepdims=True), self.action_space, axis=1)
