@@ -60,9 +60,9 @@ parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disables CUDA training')
 
 # Env Arguments
-parser.add_argument('--env-batch-size', type=int, default=32, metavar='N',
+parser.add_argument('--env-batch-size', type=int, default=64, metavar='N',
                     help='env batch size for training (default: 64)')
-parser.add_argument('--env-iterations', type=int, default=11250, metavar='N',
+parser.add_argument('--env-iterations', type=int, default=5625, metavar='N',
                     help='number of env iterations (default: 1)')
 
 # Model Arguments

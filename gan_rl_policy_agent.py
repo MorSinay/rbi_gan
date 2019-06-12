@@ -32,18 +32,15 @@ class GANAgent(Agent):
 
         use_cuda = not args.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if use_cuda else "cpu")
+        self.pi_rand = np.ones(self.action_space, dtype=np.float32) / self.action_space
 
-        self.beta_net = nn.Parameter(torch.tensor(self.action_space))
+        self.beta_net = nn.Parameter(torch.tensor(self.pi_rand))
         self.value_net = DuelNet()
 
-        if torch.cuda.device_count() > 1:
-            self.beta_net = nn.DataParallel(self.beta_net)
-            self.value_net = nn.DataParallel(self.value_net)
-
-        self.beta_net.to(self.device)
+        self.beta_net = self.beta_net.to(self.device)
         self.value_net.to(self.device)
 
-        self.pi_rand = np.ones(self.action_space, dtype=np.float32) / self.action_space
+
         self.q_loss = nn.SmoothL1Loss(reduction='none')
 
         if player:
@@ -66,40 +63,29 @@ class GANAgent(Agent):
 
         # IT IS IMPORTANT TO ASSIGN MODEL TO CUDA/PARALLEL BEFORE DEFINING OPTIMIZER
         self.optimizer_value = torch.optim.Adam(self.value_net.parameters(), lr=0.00025/4, eps=1.5e-4, weight_decay=0)
-        self.optimizer_beta = torch.optim.Adam(self.beta_net.parameters(), lr=0.00025/4, eps=1.5e-4, weight_decay=0)
+        self.optimizer_beta = torch.optim.Adam([self.beta_net], lr=0.00025/4, eps=1.5e-4, weight_decay=0)
         self.n_offset = 0
 
     def save_checkpoint(self, path, aux=None):
 
-        if torch.cuda.device_count() > 1:
-            state = {'beta_net': self.beta_net.module.state_dict(),
-                     'value_net': self.value_net.module.state_dict(),
-                     'optimizer_value': self.optimizer_value.state_dict(),
-                     'optimizer_beta': self.optimizer_beta.state_dict(),
-                     'aux': aux}
-        else:
-            state = {'beta_net': self.beta_net.state_dict(),
-                     'value_net': self.value_net.state_dict(),
-                     'optimizer_value': self.optimizer_value.state_dict(),
-                     'optimizer_beta': self.optimizer_beta.state_dict(),
-                     'aux': aux}
+        state = {'beta_net': self.beta_net,
+                 'value_net': self.value_net.state_dict(),
+                 'optimizer_value': self.optimizer_value.state_dict(),
+                 'optimizer_beta': self.optimizer_beta.state_dict(),
+                 'aux': aux}
 
         torch.save(state, path)
 
     def load_checkpoint(self, path):
 
         if not os.path.exists(path):
-        #    return {'n':0}
-            assert False, "load_checkpoint"
+            return {'n':0}
+        #    assert False, "load_checkpoint"
 
         state = torch.load(path, map_location="cuda:%d" % self.cuda_id)
 
-        if torch.cuda.device_count() > 1:
-            self.beta_net.module.load_state_dict(state['beta_net'])
-            self.value_net.module.load_state_dict(state['value_net'])
-        else:
-            self.beta_net.load_state_dict(state['beta_net'])
-            self.value_net.load_state_dict(state['value_net'])
+        self.beta_net = state['beta_net'].to(self.device)
+        self.value_net.load_state_dict(state['value_net'])
 
         self.optimizer_beta.load_state_dict(state['optimizer_beta'])
         self.optimizer_value.load_state_dict(state['optimizer_value'])
@@ -110,7 +96,7 @@ class GANAgent(Agent):
     def learn(self, n_interval, n_tot):
         self.save_checkpoint(self.snapshot_path, {'n': 0})
 
-        self.beta_net.train()
+      #  self.beta_net.to(self.device)
         self.value_net.train()
 
         results = {'n': [], 'loss_q': [], 'loss_beta': [],
@@ -129,7 +115,7 @@ class GANAgent(Agent):
             self.optimizer_beta.zero_grad()
             self.optimizer_value.zero_grad()
 
-            beta_policy = F.softmax(self.beta_net, dim=1)
+            beta_policy = F.softmax(self.beta_net)
             q_value = self.value_net(pi_explore).view(-1)
 
             loss_q = self.q_loss(q_value, r).mean()
@@ -171,7 +157,6 @@ class GANAgent(Agent):
                     results['n'] = n
 
                     yield results
-                    self.beta_net.train()
                     self.value_net.train()
                     results = {key: [] for key in results}
 
@@ -218,7 +203,6 @@ class GANAgent(Agent):
                 except:
                     pass
 
-                self.beta_net.eval()
                 self.value_net.eval()
 
             if self.n_offset <= self.n_rand:
@@ -226,7 +210,7 @@ class GANAgent(Agent):
                 pi = pi_explore
             else:
                 beta = self.beta_net
-                beta = F.softmax(beta.detach(), dim=1)
+                beta = F.softmax(beta.detach())
                 beta = beta.data.cpu().numpy().reshape(-1,self.action_space)
 
                 pi = beta.copy()
@@ -259,7 +243,7 @@ class GANAgent(Agent):
 
                 episode[i].append(episode_format)
 
-                if (not env.k % self.save_to_mem) or env.t:
+                if env.t:
                 #if env.t:
 
                     #print("player {} - acc {}, n-offset {}, frame {}, episode {} k {}".format(i, env.acc, self.n_offset, self.frame, episode_num[i], env.k))
@@ -333,13 +317,12 @@ class GANAgent(Agent):
                 continue
 
             self.env.reset()
-            self.beta_net.eval()
             self.value_net.eval()
 
             for _ in tqdm(itertools.count()):
 
                 beta = self.beta_net
-                beta = F.softmax(beta.detach(), dim=1)
+                beta = F.softmax(beta.detach())
 
                 q = self.value_net(beta)
 
@@ -371,7 +354,6 @@ class GANAgent(Agent):
                 results['r'] = np.asarray(results['r'])
 
                 results['n'] = self.n_offset
-                results['k'] = self.env.k
                 results['score'] = results['q']
                 #results['acc'] = self.env.acc
 
