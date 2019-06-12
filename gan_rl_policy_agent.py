@@ -279,6 +279,10 @@ class GANAgent(Agent):
             loss_beta.backward()
             self.optimizer_beta.step()
 
+            # Target update
+            soft_update(self.target_net, self.value_net, self.tau)
+            soft_update(self.beta_target_net, self.beta_net, self.tau)
+
             # collect actions statistics
             if not n % 50:
                 # add results
@@ -302,10 +306,10 @@ class GANAgent(Agent):
                     # save agent state
                     self.save_checkpoint(self.snapshot_path, {'n': n})
 
-                if not n % self.update_target_interval:
-                    # save agent state
-                    self.target_net.load_state_dict(self.value_net.state_dict())
-                    self.beta_target_net.load_state_dict(self.beta_net.state_dict())
+                # if not n % self.update_target_interval:
+                #     # save agent state
+                #     self.target_net.load_state_dict(self.value_net.state_dict())
+                #     self.beta_target_net.load_state_dict(self.beta_net.state_dict())
 
                 if not n % n_interval:
                     results['a_player'] = np.concatenate(results['a_player'])

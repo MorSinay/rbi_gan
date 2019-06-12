@@ -113,13 +113,13 @@ class Env(object):
             # TODO: maybe save a GPU to tun only the test
             cm = self.test_func()
             next_acc = self.acc_func(cm)
-            self.acc = next_acc
 
             self.k += 1
-            if self.k >= self.max_k or self.acc >= self.max_acc:
+            if self.k >= self.max_k or next_acc >= self.max_acc:
                 self.t = 1
 
             self.reward_func(next_acc)
+            self.acc = next_acc
             new_state = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
             self.state = torch.Tensor(new_state).view(-1, self.output_size * self.output_size)
 
@@ -135,14 +135,14 @@ class Env(object):
             # TODO: maybe save a GPU to tun only the test
             cm = self.test_func()
             next_acc = self.acc_func(cm)
-            self.acc = next_acc
 
             self.k += 1
 
-            if self.k >= self.max_k or self.acc >= self.max_acc:
+            if self.k >= self.max_k or next_acc >= self.max_acc:
                 self.t = 1
 
             self.reward_func(next_acc)
+            self.acc = next_acc
             new_state = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
             self.state = torch.Tensor(new_state).view(-1, self.output_size * self.output_size)
 

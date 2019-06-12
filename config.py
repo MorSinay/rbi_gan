@@ -120,7 +120,7 @@ parser.add_argument('--resume', type=int, default=-1, help='Resume experiment nu
 # parser.add_argument('--softmax-diff', type=float, default=3.8, metavar='β', help='Maximum softmax diff')
 parser.add_argument('--epsilon', type=float, default=0.1, metavar='ε', help='exploration parameter before behavioral period')
 parser.add_argument('--eta', type=float, default=0.001, metavar='ε', help='exploration parameter before behavioral period')
-#
+parser.add_argument('--tau', type=float, default=0.001, metavar='ε', help='moving average for target network')
 # #dataloader
 parser.add_argument('--cpu-workers', type=int, default=48, help='How many CPUs will be used for the data loading')
 parser.add_argument('--cuda-default', type=int, default=0, help='Default GPU')
