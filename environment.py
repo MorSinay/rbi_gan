@@ -29,7 +29,10 @@ class Env(object):
 
         self.test_func = self.model.test
 
-        self.acc_func = self.acc_calc
+        if args.acc == 'all':
+            self.acc_func = self.acc_calc
+        else:
+            self.acc_func = self.label_calc
 
         self.reward_func = self.reward_final
 

@@ -142,7 +142,7 @@ class Experiment(object):
             print("wait for first samples")
 
 
-            if len(os.listdir(self.dirs_locks.trajectory_dir)) > 20:
+            if len(os.listdir(self.dirs_locks.trajectory_dir)) > 128:
                 hold = 0
 
             time.sleep(5)
@@ -164,17 +164,12 @@ class Experiment(object):
 
             avg_train_loss_beta = np.mean(train_results['loss_beta'])
             avg_train_loss_v_beta = np.mean(train_results['loss_q'])
-            avg_train_loss_std = np.mean(train_results['loss_std'])
 
             # log to tensorboard
             if args.tensorboard:
                 self.writer.add_scalar('train_loss/loss_beta', float(avg_train_loss_beta), n + n_offset)
                 self.writer.add_scalar('train_loss/loss_value', float(avg_train_loss_v_beta), n + n_offset)
-                self.writer.add_scalar('train_loss/loss_std', float(avg_train_loss_std), n + n_offset)
-
-                #self.writer.add_scalar('states/state', train_results['s'], n)
                 self.writer.add_scalar('actions/reward', train_results['r'].mean(), n)
-                self.writer.add_histogram("actions/a_player", train_results['a_player'], n + n_offset, 'doane')
 
                 if hasattr(agent, "beta_net"):
                     for name, param in agent.beta_net.named_parameters():
@@ -185,7 +180,7 @@ class Experiment(object):
                         self.writer.add_histogram("value_net/%s" % name, param.clone().cpu().data.numpy(), n + n_offset,
                                                   'fd')
             self.print_actions_statistics(train_results['pi'], train_results['pi_tag'] , train_results['beta'],
-                                          train_results['q'], train_results['a_player'], avg_train_loss_beta,
+                                          train_results['q'], avg_train_loss_beta,
                                           avg_train_loss_v_beta)
             agent.save_checkpoint(self.checkpoint, {'n': n + n_offset})
 
@@ -274,20 +269,10 @@ class Experiment(object):
         agent = self.choose_agent()(self.exp_name, player=True, checkpoint=self.checkpoint, choose=True)
         agent.clean()
 
-    def print_actions_statistics(self, pi_player, pi_tag_player, beta_player, q_player, a_player, loss_q, loss_beta):
+    def print_actions_statistics(self, pi_player, pi_tag_player, beta_player, q_player, loss_q, loss_beta):
 
         # print action meanings
         logger.info("Actions statistics: \tloss_beta = %f |\t loss_q = %f |" % (loss_beta, loss_q))
-
-        n_actions = len(a_player)
-        applied_player_actions = (np.bincount(np.concatenate((a_player, np.arange(consts.action_space)))) - 1) / n_actions
-
-        line = ''
-        line += "|\tPlayer actions\t"
-        for a in applied_player_actions:
-            line += "|%.2f\t" % (a*100)
-        line += "|"
-        logger.info(line)
 
         pi_tag = "|\tpolicy pi tag\t"
         pi =     "|\tpolicy pi    \t"
@@ -308,25 +293,24 @@ class Experiment(object):
         logger.info(beta)
         logger.info(q)
 
-    def evaluate(self, pi = None):
+    def evaluate(self):
         time.sleep(15)
 
         agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint)
 
-        player = agent.evaluate(pi)
+        player = agent.evaluate()
 
         for n, train_results in tqdm(enumerate(player)):
 
             frame = train_results['n']
-            print("print_evaluation_experiment - |n:{}\t|frame:{}\t|acc:{}\t|k:{}\t|".format(
-                n, frame, train_results['acc'][-1], train_results['k']))
+            print("print_evaluation_experiment - |n:{}\t|frame:{}\t|acc:{}\t|".format(
+                n, frame, train_results['acc'][-1]))
 
             # log to tensorboard
             if args.tensorboard:
 
                 rand_param = "_rand_"+str(args.actor_index) if args.evaluate_random_policy else ""
 
-                self.writer.add_scalar('evaluation' + rand_param + '/k', train_results['k'], frame)
                 self.writer.add_scalar('evaluation' + rand_param + '/acc', train_results['acc'][-1], frame)
                 self.writer.add_scalar('evaluation' + rand_param + '/score', train_results['score'], frame)
 
@@ -334,6 +318,7 @@ class Experiment(object):
                 for i in range(len(train_results['pi'])):
                     self.writer.add_scalar(game_str + '/pi', train_results['pi'][i], i)
                     self.writer.add_scalar(game_str + '/beta', train_results['beta'][i], i)
+                    self.writer.add_scalar(game_str + '/q_onehot', train_results['q_onehot'][i], i)
 
                 for i in range(len(train_results['q'])):
                     self.writer.add_scalar(game_str + '/value', train_results['q'][i], i)
@@ -361,27 +346,30 @@ class Experiment(object):
                 # self.writer.add_histogram("policy/value", self.probability_to_hist(train_results['q']), frame, 'doane')
 
                 if hasattr(agent, "beta_net"):
-                    for name, param in agent.beta_net.named_parameters():
-                        self.writer.add_histogram("evaluation/beta_net/%s" % name, param.clone().cpu().data.numpy(), frame, 'fd')
+                    self.writer.add_histogram("evaluation/beta_net", agent.beta_net.clone().cpu().data.numpy(), frame, 'fd')
                 if hasattr(agent, "value_net"):
                     for name, param in agent.value_net.named_parameters():
                         self.writer.add_histogram("evaluation/value_net/%s" % name, param.clone().cpu().data.numpy(), frame, 'fd')
 
             pi = "|\tpolicy pi\t"
             beta = "|\tpolicy beta\t"
+            onehot_q = "|\tonehot q\t"
             q = "|\tvalue q\t    "
             for i in range(consts.action_space):
                 pi += "|%.2f\t" % train_results['pi'][i]
                 beta += "|%.2f\t" % train_results['beta'][i]
+                onehot_q += "|%.2f\t" % train_results['q_onehot'][i]
 
             for i in range(len(train_results['q'])):
                 q += "|%.2f\t" % train_results['q'][i]
 
             pi += "|"
             beta += "|"
+            onehot_q += "|"
             q += "|"
             logger.info(pi)
             logger.info(beta)
+            logger.info(onehot_q)
             logger.info(q)
 
             if args.evaluate_random_policy:

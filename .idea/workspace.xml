@@ -3,14 +3,11 @@
   <component name="ChangeListManager">
     <list default="true" id="4070f6ac-5e83-4aa8-8554-23a3ceb507bc" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Runs/run_gan_player.sh" beforeDir="false" afterPath="$PROJECT_DIR$/Runs/run_gan_player.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/agent.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/config.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/environment.py" beforeDir="false" afterPath="$PROJECT_DIR$/environment.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gan_rl_agent.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/experiment.py" beforeDir="false" afterPath="$PROJECT_DIR$/experiment.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/gan_rl_policy_agent.py" beforeDir="false" afterPath="$PROJECT_DIR$/gan_rl_policy_agent.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/model_ddpg.py" beforeDir="false" afterPath="$PROJECT_DIR$/model_ddpg.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/memory_gan.py" beforeDir="false" afterPath="$PROJECT_DIR$/memory_gan.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -20,15 +17,15 @@
   </component>
   <component name="CoverageDataManager">
     <SUITE FILE_PATH="coverage/rbi_gan$hello.coverage" NAME="remote_dbg Coverage Results" MODIFIED="1554649463041" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/rbi_gan$remote_dbg.coverage" NAME="remote_dbg Coverage Results" MODIFIED="1560256919588" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/rbi_gan$remote_dbg.coverage" NAME="remote_dbg Coverage Results" MODIFIED="1560418005816" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/gan_rl_policy_agent.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="187">
-              <caret line="35" column="68" selection-start-line="35" selection-start-column="68" selection-end-line="35" selection-end-column="68" />
+            <state relative-caret-position="370">
+              <caret line="235" selection-start-line="235" selection-end-line="235" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
               </folding>
@@ -39,20 +36,11 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/environment.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="227">
-              <caret line="32" selection-start-line="32" selection-end-line="32" />
+            <state relative-caret-position="193">
+              <caret line="31" column="19" selection-start-line="31" selection-start-column="16" selection-end-line="31" selection-end-column="19" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
               </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/.gitignore">
-          <provider selected="true" editor-type-id="text-editor">
-            <state>
-              <caret column="8" selection-start-column="8" selection-end-column="8" />
             </state>
           </provider>
         </entry>
@@ -60,8 +48,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/model_ddpg.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="405">
-              <caret line="27" column="19" lean-forward="true" selection-start-line="27" selection-start-column="19" selection-end-line="27" selection-end-column="19" />
+            <state relative-caret-position="450">
+              <caret line="30" lean-forward="true" selection-start-line="30" selection-end-line="30" />
               <folding>
                 <element signature="e#0#12#0" expanded="true" />
               </folding>
@@ -70,22 +58,19 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/experiment.py">
+        <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/torch/nn/modules/module.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="317">
-              <caret line="185" column="13" selection-start-line="185" selection-start-column="13" selection-end-line="185" selection-end-column="13" />
-              <folding>
-                <element signature="e#0#11#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="165">
+              <caret line="496" selection-start-line="496" selection-end-line="496" />
             </state>
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/config.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="128">
-              <caret line="86" column="39" selection-start-line="86" selection-start-column="39" selection-end-line="86" selection-end-column="39" />
+            <state relative-caret-position="107">
+              <caret line="127" column="50" lean-forward="true" selection-start-line="127" selection-start-column="50" selection-end-line="127" selection-end-column="50" />
               <folding>
                 <element signature="e#0#15#0" expanded="true" />
               </folding>
@@ -94,19 +79,10 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/Runs/run_gan_player.sh">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="300">
-              <caret line="20" column="141" lean-forward="true" selection-start-line="20" selection-start-column="141" selection-end-line="20" selection-end-column="141" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/agent.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="55">
-              <caret line="12" column="20" selection-start-line="12" selection-start-column="20" selection-end-line="12" selection-end-column="20" />
+            <state relative-caret-position="177">
+              <caret line="14" column="61" selection-start-line="14" selection-start-column="41" selection-end-line="14" selection-end-column="61" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
               </folding>
@@ -115,10 +91,46 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/actors.sh">
+        <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/tqdm/_tqdm.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="60">
-              <caret line="4" selection-start-line="4" selection-end-line="4" />
+            <state relative-caret-position="229">
+              <caret line="913" selection-start-line="913" selection-end-line="913" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/experiment.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="727">
+              <caret line="332" column="37" lean-forward="true" selection-start-line="332" selection-start-column="37" selection-end-line="332" selection-end-column="37" />
+              <folding>
+                <element signature="e#0#11#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/main.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="196">
+              <caret line="22" selection-start-line="22" selection-end-line="22" />
+              <folding>
+                <element signature="e#0#31#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/memory_gan.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="349">
+              <caret line="110" column="24" selection-start-line="110" selection-start-column="24" selection-end-line="110" selection-end-column="24" />
+              <folding>
+                <element signature="e#0#23#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -134,36 +146,36 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>actor_cr</find>
-      <find>mul</find>
-      <find>learn_ddp</find>
-      <find>state</find>
-      <find>self.state</find>
-      <find>action_space,</find>
-      <find>multip</find>
-      <find>reward</find>
-      <find>read_</find>
-      <find>learn_dd</find>
-      <find>rec</find>
-      <find>choose_behavioral_net</find>
-      <find>train_batch</find>
-      <find>max-k</find>
-      <find>iterations</find>
-      <find>test_only_one_batch</find>
-      <find>model_ddp</find>
-      <find>target_net</find>
-      <find>env-iterations</find>
-      <find>update-target-interval</find>
-      <find>load_test_loader</find>
-      <find>update_target_interval</find>
-      <find>target_</find>
-      <find>epsilon</find>
-      <find>args.acc</find>
-      <find>target</find>
+      <find>reward_func</find>
+      <find>loss_std</find>
+      <find>print_actions_statistics</find>
+      <find>itera</find>
+      <find>train_results['k']</find>
+      <find>a_player</find>
+      <find>'k'</find>
+      <find>softmax</find>
+      <find>workers</find>
+      <find>n_interval</find>
+      <find>n_rand</find>
+      <find>checkpoint_interval</find>
+      <find>checkpoint-interval</find>
+      <find>MULTI</find>
+      <find>pi_explore</find>
+      <find>replay-memory-size</find>
+      <find>n-rand</find>
       <find>multi</find>
-      <find>args.game</find>
-      <find>active</find>
-      <find>rewa</find>
+      <find>evaluate</find>
+      <find>load</find>
+      <find>load_memory_interval</find>
+      <find>load_checkpoint</find>
+      <find>update-memory-interval</find>
+      <find>save_checkpoint</find>
+      <find>load-memory-interval</find>
+      <find>learn</find>
+      <find>learn(</find>
+      <find>benchma</find>
+      <find>player</find>
+      <find>replay</find>
     </findStrings>
     <replaceStrings>
       <replace>multiplay-random</replace>
@@ -200,19 +212,19 @@
         <option value="$PROJECT_DIR$/Net.py" />
         <option value="$PROJECT_DIR$/memory_fmnist.py" />
         <option value="$PROJECT_DIR$/learner.sh" />
-        <option value="$PROJECT_DIR$/memory_gan.py" />
-        <option value="$PROJECT_DIR$/experiment.py" />
         <option value="$PROJECT_DIR$/actors.sh" />
         <option value="$PROJECT_DIR$/model_ddpg.py" />
         <option value="$PROJECT_DIR$/agent.py" />
-        <option value="$PROJECT_DIR$/environment.py" />
-        <option value="$PROJECT_DIR$/config.py" />
         <option value="$PROJECT_DIR$/Runs/run_gan_player.sh" />
+        <option value="$PROJECT_DIR$/experiment.py" />
+        <option value="$PROJECT_DIR$/memory_gan.py" />
+        <option value="$PROJECT_DIR$/environment.py" />
         <option value="$PROJECT_DIR$/gan_rl_policy_agent.py" />
+        <option value="$PROJECT_DIR$/config.py" />
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
+  <component name="ProjectFrameBounds">
     <option name="y" value="23" />
     <option name="width" value="1920" />
     <option name="height" value="980" />
@@ -308,7 +320,7 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
-      <option name="PARAMETERS" value="--algorithm=ddpg --identifier=debug --game=bandit --n-tot=1 --learn --resume=0 --load-last-model --n-rand=-1 --n-players=1" />
+      <option name="PARAMETERS" value="--algorithm=ddpg --identifier=all --game=bandit --evaluate --resume=0 --load-last-model --n-rand=-1 --n-players=20 --env-iterations=5" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -451,7 +463,7 @@
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="320547000" />
+    <option name="totallyTimeSpent" value="342632000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -463,31 +475,31 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="23" width="1920" height="980" extended-state="6" />
+    <frame x="0" y="23" width="1920" height="980" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.10223642" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.094249204" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" sideWeight="0.49946752" visible="true" weight="0.28265765" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.37387386" />
+      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.69062835" weight="0.28265765" />
+      <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.4968051" weight="0.37387386" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" weight="0.32995495" />
       <window_info anchor="bottom" id="Docker" order="7" show_stripe_button="false" />
       <window_info anchor="bottom" id="Version Control" order="8" weight="0.32921347" />
-      <window_info anchor="bottom" id="File Transfer" order="9" sideWeight="0.49946752" weight="0.19707207" />
+      <window_info anchor="bottom" id="File Transfer" order="9" sideWeight="0.49893504" visible="true" weight="0.19707207" />
       <window_info anchor="bottom" id="Database Changes" order="10" />
       <window_info anchor="bottom" id="Terminal" order="11" weight="0.32995495" />
-      <window_info anchor="bottom" id="Event Log" order="12" sideWeight="0.5005325" side_tool="true" weight="0.28265765" />
+      <window_info anchor="bottom" id="Event Log" order="12" sideWeight="0.50106496" side_tool="true" visible="true" weight="0.19707207" />
       <window_info anchor="bottom" id="Python Console" order="13" weight="0.32882884" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
       <window_info anchor="right" id="Remote Host" order="3" weight="0.32960597" />
-      <window_info anchor="right" id="SciView" order="4" weight="0.037273694" />
+      <window_info anchor="right" id="SciView" order="4" visible="true" weight="0.037273694" />
       <window_info anchor="right" id="Database" order="5" />
     </layout>
     <layout-to-restore>
@@ -556,18 +568,13 @@
           <option name="timeStamp" value="7" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/memory_gan.py</url>
-          <line>23</line>
-          <option name="timeStamp" value="99" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/agent.py</url>
           <line>116</line>
           <option name="timeStamp" value="110" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/experiment.py</url>
-          <line>186</line>
+          <line>181</line>
           <option name="timeStamp" value="125" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -577,43 +584,43 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/experiment.py</url>
-          <line>348</line>
+          <line>333</line>
           <option name="timeStamp" value="203" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/experiment.py</url>
-          <line>354</line>
+          <line>339</line>
           <option name="timeStamp" value="204" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/gan_rl_policy_agent.py</url>
-          <line>304</line>
+          <line>330</line>
           <option name="timeStamp" value="208" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/gan_rl_policy_agent.py</url>
-          <line>102</line>
-          <option name="timeStamp" value="217" />
+          <url>file://$PROJECT_DIR$/experiment.py</url>
+          <line>165</line>
+          <option name="timeStamp" value="245" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/gan_rl_policy_agent.py</url>
-          <line>178</line>
-          <option name="timeStamp" value="219" />
+          <line>129</line>
+          <option name="timeStamp" value="248" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/gan_rl_policy_agent.py</url>
-          <line>335</line>
-          <option name="timeStamp" value="222" />
+          <line>254</line>
+          <option name="timeStamp" value="257" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/gan_rl_policy_agent.py</url>
-          <line>331</line>
-          <option name="timeStamp" value="223" />
+          <line>325</line>
+          <option name="timeStamp" value="258" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/model_ddpg.py</url>
-          <line>25</line>
-          <option name="timeStamp" value="231" />
+          <url>file://$PROJECT_DIR$/gan_rl_policy_agent.py</url>
+          <line>354</line>
+          <option name="timeStamp" value="259" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
@@ -621,60 +628,53 @@
   <component name="debuggerHistoryManager">
     <expressions id="evaluateExpression">
       <expression>
-        <expression-string>x</expression-string>
+        <expression-string>beta = beta.data.numpy().reshape(self.action_space)</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>pi</expression-string>
+        <expression-string>beta = beta.data.cpu().numpy().reshape(self.action_space)</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>s</expression-string>
+        <expression-string>beta</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>(results['pi'] * results['q']).sum()</expression-string>
+        <expression-string>q_onehot.data.cpu().numpy().reshape(5)</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>results['pi'] * results['q']</expression-string>
+        <expression-string>np.stack(q_onehot.data.cpu().numpy()).reshape(5)</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>results['pi']</expression-string>
+        <expression-string>np.stack(q_onehot.data.cpu().numpy()).shape</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>results['q']</expression-string>
+        <expression-string>np.stack(q_onehot.data.cpu().numpy())</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>esults['pi']</expression-string>
+        <expression-string>q_onehot.data.cpu().numpy()</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
       <expression>
-        <expression-string>esults['pi'</expression-string>
+        <expression-string>q_onehot.data.cpu().numpy().view(-1)</expression-string>
         <language-id>Python</language-id>
         <evaluation-mode>EXPRESSION</evaluation-mode>
       </expression>
     </expressions>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/297632761/multiprocessing/queues.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="373">
-          <caret line="169" selection-start-line="169" selection-end-line="169" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/../GAN_RL/FMNIST/RL_FC_MEM.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="175">
@@ -731,13 +731,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="163">
           <caret line="84" selection-start-line="84" selection-end-line="84" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/tqdm/_tqdm.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1292">
-          <caret line="966" selection-start-line="966" selection-end-line="966" />
         </state>
       </provider>
     </entry>
@@ -814,16 +807,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/gan_rl_agent.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="122">
-          <caret line="28" column="52" selection-start-line="28" selection-start-column="52" selection-end-line="28" selection-end-column="52" />
-          <folding>
-            <element signature="e#0#12#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/gan_rl_agent.py" />
     <entry file="file://$PROJECT_DIR$/model_cifar.py" />
     <entry file="file://$PROJECT_DIR$/Net.py">
       <provider selected="true" editor-type-id="text-editor">
@@ -832,20 +816,6 @@
           <folding>
             <element signature="e#0#37#0" expanded="true" />
           </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/torch/optim/optimizer.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="204">
-          <caret line="37" selection-start-line="37" selection-end-line="37" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/torch/optim/adam.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="204">
-          <caret line="40" selection-start-line="40" selection-end-line="40" />
         </state>
       </provider>
     </entry>
@@ -884,16 +854,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="155">
-          <caret line="21" selection-start-line="21" selection-end-line="21" />
-          <folding>
-            <element signature="e#0#31#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/numpy/lib/format.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="169">
@@ -905,23 +865,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="177">
           <caret line="734" selection-start-line="734" selection-end-line="734" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/memory_gan.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="435">
-          <caret line="29" column="31" lean-forward="true" selection-start-line="29" selection-start-column="31" selection-end-line="29" selection-end-column="32" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/torch/nn/functional.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="417">
-          <caret line="1702" lean-forward="true" selection-start-line="1702" selection-end-line="1702" />
         </state>
       </provider>
     </entry>
@@ -953,13 +896,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/torch/nn/modules/module.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="477">
-          <caret line="496" selection-start-line="496" selection-end-line="496" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/297632761/multiprocessing/process.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="177">
@@ -981,30 +917,59 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/model_ddpg.py">
+    <entry file="file://$PROJECT_DIR$/model.py" />
+    <entry file="file://$PROJECT_DIR$/Runs/run_gan_player.sh">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="405">
-          <caret line="27" column="19" lean-forward="true" selection-start-line="27" selection-start-column="19" selection-end-line="27" selection-end-column="19" />
+        <state relative-caret-position="300">
+          <caret line="20" column="141" lean-forward="true" selection-start-line="20" selection-start-column="141" selection-end-line="20" selection-end-column="141" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/torch/optim/adam.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="570">
+          <caret line="40" selection-start-line="40" selection-end-line="40" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/torch/nn/modules/linear.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="735">
+          <caret line="54" selection-start-line="54" selection-end-line="54" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/torch/optim/optimizer.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="298">
+          <caret line="192" column="66" lean-forward="true" selection-start-line="192" selection-start-column="34" selection-end-line="192" selection-end-column="66" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="196">
+          <caret line="22" selection-start-line="22" selection-end-line="22" />
           <folding>
-            <element signature="e#0#12#0" expanded="true" />
+            <element signature="e#0#31#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/agent.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="55">
-          <caret line="12" column="20" selection-start-line="12" selection-start-column="20" selection-end-line="12" selection-end-column="20" />
+        <state relative-caret-position="177">
+          <caret line="14" column="61" selection-start-line="14" selection-start-column="41" selection-end-line="14" selection-end-column="61" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/model.py">
+    <entry file="file://$PROJECT_DIR$/model_ddpg.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="180">
-          <caret line="15" column="15" lean-forward="true" selection-start-line="15" selection-start-column="15" selection-end-line="15" selection-end-column="15" />
+        <state relative-caret-position="450">
+          <caret line="30" lean-forward="true" selection-start-line="30" selection-end-line="30" />
           <folding>
             <element signature="e#0#12#0" expanded="true" />
           </folding>
@@ -1013,18 +978,59 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/experiment.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="317">
-          <caret line="185" column="13" selection-start-line="185" selection-start-column="13" selection-end-line="185" selection-end-column="13" />
+        <state relative-caret-position="727">
+          <caret line="332" column="37" lean-forward="true" selection-start-line="332" selection-start-column="37" selection-end-line="332" selection-end-column="37" />
           <folding>
             <element signature="e#0#11#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/torch/nn/functional.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="584">
+          <caret line="1023" selection-start-line="1023" selection-end-line="1023" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/torch/nn/modules/module.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="165">
+          <caret line="496" selection-start-line="496" selection-end-line="496" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Library/Caches/PyCharm2018.3/remote_sources/204277109/1251662109/tqdm/_tqdm.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="229">
+          <caret line="913" selection-start-line="913" selection-end-line="913" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/memory_gan.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="349">
+          <caret line="110" column="24" selection-start-line="110" selection-start-column="24" selection-end-line="110" selection-end-column="24" />
+          <folding>
+            <element signature="e#0#23#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/environment.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="227">
-          <caret line="32" selection-start-line="32" selection-end-line="32" />
+        <state relative-caret-position="193">
+          <caret line="31" column="19" selection-start-line="31" selection-start-column="16" selection-end-line="31" selection-end-column="19" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/gan_rl_policy_agent.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="370">
+          <caret line="235" selection-start-line="235" selection-end-line="235" />
           <folding>
             <element signature="e#0#12#0" expanded="true" />
           </folding>
@@ -1033,27 +1039,10 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/config.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="128">
-          <caret line="86" column="39" selection-start-line="86" selection-start-column="39" selection-end-line="86" selection-end-column="39" />
+        <state relative-caret-position="107">
+          <caret line="127" column="50" lean-forward="true" selection-start-line="127" selection-start-column="50" selection-end-line="127" selection-end-column="50" />
           <folding>
             <element signature="e#0#15#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Runs/run_gan_player.sh">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="300">
-          <caret line="20" column="141" lean-forward="true" selection-start-line="20" selection-start-column="141" selection-end-line="20" selection-end-column="141" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/gan_rl_policy_agent.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="187">
-          <caret line="35" column="68" selection-start-line="35" selection-start-column="68" selection-end-line="35" selection-end-column="68" />
-          <folding>
-            <element signature="e#0#12#0" expanded="true" />
           </folding>
         </state>
       </provider>

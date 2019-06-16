@@ -86,7 +86,11 @@ parser.add_argument('--game', type=str, default='active', help='active | generat
 parser.add_argument('--identifier', type=str, default='debug', help='The name of the model to use')
 parser.add_argument('--algorithm', type=str, default='rbi', help='[rbi|ddpg]')
 
+parser.add_argument('--acc', type=str, default='all', help='[all|label]')
+#parser.add_argument('--reward', type=str, default='shape', help='[shape|no_shape|step|final]')
+
 parser.add_argument('--benchmark', type=str, default='mnist', help='[mnist|fmnist|cifar10]')
+parser.add_argument('--beta-init', type=str, default='uniform', help='[uniform|label|rand]')
 #parser.add_argument('--base-dir', type=str, default=base_dir, help='Base directory for Logs and results')
 
 # # booleans
@@ -106,6 +110,8 @@ boolean_feature("log-scores", True, "Log score results to NPY objects")
 #TODO Mor: return to 6
 parser.add_argument('--n-steps', type=int, default=1, metavar='STEPS', help='Number of steps for multi-step learning')
 
+
+
 # parameters
 parser.add_argument('--resume', type=int, default=-1, help='Resume experiment number, set -1 for last experiment')
 
@@ -115,24 +121,24 @@ parser.add_argument('--epsilon', type=float, default=0.1, metavar='ε', help='ex
 parser.add_argument('--eta', type=float, default=0.001, metavar='ε', help='exploration parameter before behavioral period')
 #
 # #dataloader
-parser.add_argument('--cpu-workers', type=int, default=48, help='How many CPUs will be used for the data loading')
+parser.add_argument('--cpu-workers', type=int, default=24, help='How many CPUs will be used for the data loading')
 parser.add_argument('--cuda-default', type=int, default=0, help='Default GPU')
 #
 # #train parameters
-parser.add_argument('--n-tot', type=int, default=3160000, metavar='STEPS', help='Total number of training steps')
-parser.add_argument('--checkpoint-interval', type=int, default=5000, metavar='STEPS', help='Number of training steps between evaluations')
+parser.add_argument('--n-tot', type=int, default=1000000, metavar='STEPS', help='Total number of training steps')
+parser.add_argument('--checkpoint-interval', type=int, default=1000, metavar='STEPS', help='Number of training steps between evaluations')
 # parser.add_argument('--random-initialization', type=int, default=2500, metavar='STEPS', help='Number of training steps in random policy')
 parser.add_argument('--player-replay-size', type=int, default=2500, help='Player\'s replay memory size')
-parser.add_argument('--update-memory-interval', type=int, default=100, metavar='STEPS', help='Number of steps between memory updates')
-parser.add_argument('--load-memory-interval', type=int, default=50, metavar='STEPS', help='Number of steps between memory loads')
+parser.add_argument('--update-memory-interval', type=int, default=10, metavar='STEPS', help='Number of steps between memory updates')
+parser.add_argument('--load-memory-interval', type=int, default=10, metavar='STEPS', help='Number of steps between memory loads')
 parser.add_argument('--replay-updates-interval', type=int, default=5000, metavar='STEPS', help='Number of training iterations between q-target updates')
-parser.add_argument('--replay-memory-size', type=int, default=2000000, help='Total replay exploit memory size')
+parser.add_argument('--replay-memory-size', type=int, default=20000, help='Total replay exploit memory size')
 parser.add_argument('--gamma', type=float, default=0.97, metavar='LR', help='gamma (default: 0.97)')
 parser.add_argument('--cmin', type=float, default=0, metavar='c_min', help='Lower reroute threshold')
 parser.add_argument('--cmax', type=float, default=2, metavar='c_max', help='Upper reroute threshold')
 parser.add_argument('--delta', type=float, default=0.1, metavar='delta', help='Total variation constraint')
 parser.add_argument('--save-to-mem', type=int, default=200, metavar='stm', help='Save to memory')
-parser.add_argument('--n-rand', type=int, default=5000, metavar='rnand', help='random play')
+parser.add_argument('--n-rand', type=int, default=2000, metavar='rnand', help='random play')
 parser.add_argument('--rl-metric', type=str, default='td', metavar='rl', help='td|mc')
 #
 # #actors parameters

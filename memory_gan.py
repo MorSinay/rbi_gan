@@ -60,7 +60,7 @@ class ReplayBatchSampler(object):
             np.save(fread, [])
             release_file(fread)
             # if flag:
-            traj_sorted = list(range(20))*50
+            #traj_sorted = list(range(10))*50
             #
             if not len(traj_sorted):
                 #print("traj_sorted empty")
@@ -107,6 +107,8 @@ class ReplayBatchSampler(object):
                     fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                     print(exc_type, fname, exc_tb.tb_lineno)
                     print(e)
+
+            time.sleep(5)
 
     def __len__(self):
         return np.inf
