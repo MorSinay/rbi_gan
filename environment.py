@@ -42,9 +42,14 @@ class Env(object):
         return np.trace(cm)/np.sum(cm)
 
     def label_calc(self, cm):
-        label1 = 9
-        label2 = 5
-        return 0.5*cm[label1][label1]/cm.sum(axis=1)[label1] + 0.5*cm[label2][label2]/cm.sum(axis=1)[label2]
+        labels = [0,5,9]
+        acc = 0.0
+        for l in labels:
+            acc += cm[l][l]/cm.sum(axis=1)[l]
+
+        acc /= len(labels)
+
+        return acc
 
     def reward_final(self, next_acc):
         self.reward = min(-np.log2(1-next_acc),10)

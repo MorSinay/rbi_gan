@@ -6,6 +6,8 @@ import numpy as np
 from tqdm import tqdm
 from torch.nn import functional as F
 import torch.nn as nn
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
 
 from config import consts, args, lock_file, release_file
 import psutil
@@ -24,11 +26,11 @@ mem_threshold = consts.mem_threshold
 
 class GANAgent(Agent):
 
-    def __init__(self, exp_name, player=False, choose=False, checkpoint=None):
+    def __init__(self, exp_name, player=False, choose=False, checkpoint_value=None, checkpoint_beta=None):
 
         reward_str = "BANDIT"
         print("Learning POLICY method using {} with GANAgent".format(reward_str))
-        super(GANAgent, self).__init__(exp_name, checkpoint)
+        super(GANAgent, self).__init__(exp_name, checkpoint_value, checkpoint_beta)
 
         use_cuda = not args.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if use_cuda else "cpu")
@@ -45,7 +47,6 @@ class GANAgent(Agent):
         else:
             raise ImportError
 
-        self.beta_net = nn.Parameter(init)
         self.value_net = DuelNet()
         self.value_net.to(self.device)
 
@@ -53,12 +54,14 @@ class GANAgent(Agent):
         self.q_loss = nn.SmoothL1Loss(reduction='none')
 
         if player:
+            self.beta_net = nn.Parameter(init)
             # play variables
             self.env = Env()
             # TODO Mor: look
             self.n_replay_saved = 1
             self.frame = 0
             self.save_to_mem = args.save_to_mem
+            self.explore_only = choose
 
         else:
             # datasets
@@ -71,49 +74,71 @@ class GANAgent(Agent):
         # configure learning
 
         # IT IS IMPORTANT TO ASSIGN MODEL TO CUDA/PARALLEL BEFORE DEFINING OPTIMIZER
-        self.optimizer_value = torch.optim.SGD(self.value_net.parameters(), lr=0.001)
+        self.optimizer_value = torch.optim.SGD(self.value_net.parameters(), lr=0.0001)
         #self.optimizer_value = torch.optim.Adam(self.value_net.parameters(), lr=0.001, eps=1.5e-4, weight_decay=0)
 
-        self.optimizer_beta = torch.optim.Adam([self.beta_net], lr=0.00025/4)
+        if player:
+            self.optimizer_beta = torch.optim.Adam([self.beta_net], lr=self.beta_lr)
         #self.optimizer_beta = torch.optim.Adam([self.beta_net], lr=0.00025/4, eps=1.5e-4, weight_decay=0)
         self.n_offset = 0
 
-    def save_checkpoint(self, path, aux=None):
+    def save_value_checkpoint(self, path, aux=None):
 
-        state = {'beta_net': self.beta_net,
+        state = {#'beta_net': self.beta_net,
                  'value_net': self.value_net.state_dict(),
                  'optimizer_value': self.optimizer_value.state_dict(),
-                 'optimizer_beta': self.optimizer_beta.state_dict(),
+                 #'optimizer_beta': self.optimizer_beta.state_dict(),
                  'aux': aux}
 
         torch.save(state, path)
 
-    def load_checkpoint(self, path):
+    def load_value_checkpoint(self, path):
 
         if not os.path.exists(path):
             #return {'n':0}
-            assert False, "load_checkpoint"
+            assert False, "load_value_checkpoint"
 
         state = torch.load(path, map_location="cuda:%d" % self.cuda_id)
 
-        self.beta_net = state['beta_net'].to(self.device)
+        #self.beta_net = state['beta_net'].to(self.device)
         self.value_net.load_state_dict(state['value_net'])
 
-        self.optimizer_beta.load_state_dict(state['optimizer_beta'])
+        #self.optimizer_beta.load_state_dict(state['optimizer_beta'])
         self.optimizer_value.load_state_dict(state['optimizer_value'])
         self.n_offset = state['aux']['n']
 
         return state['aux']
 
-    def learn(self, n_interval, n_tot):
-        self.save_checkpoint(self.snapshot_path, {'n': 0})
+    def save_beta_checkpoint(self, path, aux=None):
 
-      #  self.beta_net.to(self.device)
+        state = {'beta_net': self.beta_net,
+                 'optimizer_beta': self.optimizer_beta.state_dict(),
+                 'aux': aux}
+
+        torch.save(state, path)
+
+    def load_beta_checkpoint(self, path):
+
+        if not os.path.exists(path):
+            # return {'n':0}
+            assert False, "load_beta_checkpoint"
+
+        state = torch.load(path, map_location="cuda:%d" % self.cuda_id)
+
+        self.beta_net = state['beta_net'].to(self.device)
+        self.optimizer_beta.load_state_dict(state['optimizer_beta'])
+
+        return state['aux']
+
+    def learn(self, n_interval, n_tot):
         self.value_net.train()
 
-        results = {'n': [], 'loss_q': [], 'loss_beta': [],
-                   'r': [], 't': [], 'pi': [], 'pi_tag': [], 'acc': [], 'beta': [],
-                   'q': []}
+        results = {'n': [], 'loss_q': [],
+                   'r': [], 't': [], 'pi': [], 'pi_tag': [], 'acc': [],
+                   'q': [], 'q_onehot': []}
+
+        onehot = torch.zeros(self.action_space, self.action_space).to(self.device)
+        onehot[torch.arange(self.action_space), torch.arange(self.action_space)] = 1
 
         for n, sample in tqdm(enumerate(self.train_loader)):
 
@@ -124,26 +149,17 @@ class GANAgent(Agent):
             acc = sample['acc'].to(self.device, non_blocking=True)
             pi_tag = sample['pi_tag'].to(self.device, non_blocking=True)
 
-            self.optimizer_beta.zero_grad()
             self.optimizer_value.zero_grad()
 
-            beta_policy = F.softmax(self.beta_net, dim=0)
             q_value = self.value_net(pi_explore).view(-1)
 
             loss_q = self.q_loss(q_value, r).mean()
             loss_q.backward()
             self.optimizer_value.step()
 
-            if n > self.n_rand*2:
-                loss_beta = -self.value_net(beta_policy)
-                loss_beta.backward()
-                self.optimizer_beta.step()
-            else:
-                loss_beta = -self.value_net(pi).mean()
-
             if not n % self.update_memory_interval:
                 # save agent state
-                self.save_checkpoint(self.snapshot_path, {'n': n})
+                self.save_value_checkpoint(self.checkpoint_value, {'n': n})
 
             # collect actions statistics
             if not n % 50:
@@ -153,11 +169,9 @@ class GANAgent(Agent):
                 results['pi'].append(pi.data.cpu().numpy())
                 results['acc'].append(acc.data.cpu().numpy())
                 results['pi_tag'].append(pi_tag.data.cpu().numpy())
-                results['beta'].append([beta_policy.detach().cpu().numpy()])
                 results['q'].append(q_value.detach().cpu().numpy())
 
                 # add results
-                results['loss_beta'].append(loss_beta.data.cpu().numpy())
                 results['loss_q'].append(loss_q.data.cpu().numpy())
 
                 if not n % n_interval:
@@ -167,16 +181,18 @@ class GANAgent(Agent):
 
                     results['pi'] = np.average(np.concatenate(results['pi']), axis=0).flatten()
                     results['pi_tag'] = np.average(np.concatenate(results['pi_tag']), axis=0).flatten()
-                    results['beta'] = np.average(np.concatenate(results['beta']), axis=0).flatten()
                     results['q'] = np.average(np.concatenate(results['q']), axis=0).flatten()
                     results['n'] = n
+
+                    q_onehot = self.value_net(onehot)
+                    results['q_onehot'] = q_onehot.data.cpu().numpy().reshape(self.action_space)
 
                     yield results
                     self.value_net.train()
                     results = {key: [] for key in results}
 
                     if n >= n_tot:
-                        self.save_checkpoint(self.snapshot_path, {'n': n})
+                        self.save_value_checkpoint(self.checkpoint_value, {'n': n})
                         break
 
         print("Learn Finish")
@@ -188,10 +204,8 @@ class GANAgent(Agent):
         mp_env = [Env() for _ in range(n_players)]
         self.frame = 0
 
-        range_players = np.arange(n_players)
         rewards = [[[]] for _ in range(n_players)]
         accs = [[[]] for _ in range(n_players)]
-        states = [[[]] for _ in range(n_players)]
         episode = [[] for _ in range(n_players)]
         ts = [[[]] for _ in range(n_players)]
         policies = [[[]] for _ in range(n_players)]
@@ -210,18 +224,17 @@ class GANAgent(Agent):
 #        for i in range(n_players):
  #           mp_env[i].reset()
 
-        for self.frame in tqdm(itertools.count()):
+        if self.save_beta:
+            self.save_beta_checkpoint(self.checkpoint_beta, {'n': 0})
+            print("save beta")
 
-            if not (self.frame % self.load_memory_interval):
-                try:
-                    self.load_checkpoint(self.snapshot_path)
-                except:
-                    pass
+        for self.frame in (itertools.count()):
 
-                self.value_net.eval()
-
-            if self.n_offset <= self.n_rand:
-                pi = self.pi_rand
+            if self.explore_only or self.n_offset <= self.n_rand:
+                pi = np.random.randn(self.action_space)
+                pi = np.exp(pi) / np.sum(np.exp(pi))
+            #elif self.n_offset <= self.n_rand:
+            #   pi = self.pi_rand
             else:
                 beta = self.beta_net
                 beta = F.softmax(beta.detach(), dim=0)
@@ -240,11 +253,8 @@ class GANAgent(Agent):
             pi_explore = self.epsilon * explore + (1 - self.epsilon) * pi
             pi_explore = pi_explore / np.repeat(pi_explore.sum(axis=1, keepdims=True), self.action_space, axis=1)
 
-
-            for i in (range(n_players)):
-
+            for i in tqdm(range(n_players)):
                 env = mp_env[i]
-
                 env.step_policy(np.expand_dims(pi_explore[i], axis=0))
                 rewards[i][-1].append(env.reward)
                 accs[i][-1].append(env.acc)
@@ -259,9 +269,6 @@ class GANAgent(Agent):
                 episode[i].append(episode_format)
 
                 if env.t:
-                #if env.t:
-
-                    #print("player {} - acc {}, n-offset {}, frame {}, episode {} k {}".format(i, env.acc, self.n_offset, self.frame, episode_num[i], env.k))
 
                     episode_df = np.stack(episode[i])
                     trajectory[i].append(episode_df)
@@ -286,12 +293,6 @@ class GANAgent(Agent):
                         fread.seek(0)
                         np.save(fread, np.append(traj_list, traj_num))
                         release_file(fread)
-                    else:
-                        assert False, "memory error available memory {}".format(psutil.virtual_memory().available)
-
-                    trajectory[i] = []
-
-                    if env.t:
 
                         fwrite = lock_file(self.episodelock)
                         episode_num[i] = np.load(fwrite).item()
@@ -299,20 +300,78 @@ class GANAgent(Agent):
                         np.save(fwrite, episode_num[i] + 1)
                         release_file(fwrite)
 
-                        if not self.frame % 50:
-                            print("player {} - acc {}, n-offset {}, frame {}, episode {}, r {}, pi_explore {}".format(i, env.acc,
-                                                                                                  self.n_offset,
-                                                                                                  self.frame,
-                                                                                                  episode_num[i],
-                                                                                                  env.reward, pi_explore[i]))
-                        env.reset()
+                        if (i == 0) and (not self.frame % 50):
+                            print("actor {} player {} - acc {}, n-offset {}, frame {}, episode {}, r {}, pi_explore {}".format(
+                                    self.actor_index, i, env.acc, self.n_offset, self.frame, episode_num[i],env.reward, pi_explore[i]))
+                    else:
+                        assert False, "memory error available memory {}".format(psutil.virtual_memory().available)
+
+                    env.reset()
+                    trajectory[i] = []
+                else:
+                    assert False, "env.t error"
+
+                if not (self.frame % self.load_memory_interval):
+                    try:
+                        self.load_value_checkpoint(self.checkpoint_value)
+                    except:
+                        pass
+
+                    self.value_net.eval()
+
+                if self.n_offset > self.n_rand:
+                    for _ in range(10):
+                        self.optimizer_beta.zero_grad()
+                        beta_policy = F.softmax(self.beta_net, dim=0)
+                        loss_beta = -self.value_net(beta_policy)
+                        loss_beta.backward()
+                        self.optimizer_beta.step()
+
+            if self.save_beta:
+                self.save_beta_checkpoint(self.checkpoint_beta,  {'n': self.frame})
+                print("save beta")
 
             if not self.frame % self.player_replay_size:
-                yield True
+                beta_policy = F.softmax(self.beta_net, dim=0).detach().cpu().numpy()
+                a = np.hstack(accs)
+                max_player = np.argmax(a)
+                p = np.hstack(policies)
+                ep = np.hstack(explore_policies)
+                results  = {}
+                results['actor'] = self.actor_index
+                results['acc'] = a[0,max_player]
+                results['frame'] = self.frame
+                results['n_offset'] = self.n_offset
+                results['pi'] = p[0,max_player]
+                results['epi'] = ep[0,max_player]
+                results['beta'] = beta_policy
+
+                yield results
+
+                if self.save_beta: # and self.frame>30:
+                    __pi = np.vstack(np.concatenate(np.vstack(policies)))
+                    __pi_explore = np.vstack(np.concatenate(np.vstack(explore_policies)))
+                    pi_file = os.path.join(self.root_dir, "pi.npy")
+                    pi_explore_file = os.path.join(self.root_dir, "pi_explore.npy")
+                    np.save(pi_file, __pi)
+                    np.save(pi_explore_file, __pi_explore)
+
+                    # # flaten = [val for sublist in policies for val in sublist]
+                    # pi = np.vstack(np.concatenate(np.vstack(policies)))
+                    # pi_explore = np.vstack(np.concatenate(np.vstack(explore_policies)))
+                    # pca = PCA(n_components=2)
+                    # np.seterr(divide='ignore', invalid='ignore')
+                    # X_train = pca.fit_transform(pi)
+                    # X_test = pca.transform(pi_explore)
+                    # plt.plot(X_train[0], X_train[1], 'ro', label='pi')
+                    # plt.plot(X_test[0], X_test[1], 'bo', label='pi_explore')
+                    # plt.legend(loc='upper center', shadow=True, fontsize='x-large')
+                    # path = os.path.join(self.root_dir, 'pca.png')
+                    # plt.savefig(path, bbox_inches='tight')
+                    # plt.close()
+
                 if self.n_offset >= self.n_tot:
                     break
-
-
 
     def demonstrate(self, n_tot):
         return
@@ -325,19 +384,23 @@ class GANAgent(Agent):
         onehot = torch.zeros(self.action_space, self.action_space).to(self.device)
         onehot[torch.arange(self.action_space), torch.arange(self.action_space)] = 1
 
+        beta_checkpoint_n = 0
         try:
-            self.load_checkpoint(self.snapshot_path)
+            self.load_value_checkpoint(self.checkpoint_value)
+            beta_checkpoint_n = (self.load_beta_checkpoint(self.checkpoint_beta))['n']
         except:
             print("Error in load checkpoint")
             pass
 
-        results = {'n': [], 'pi': [], 'beta': [], 'q': [], 'acc': [], 'r': [], 'score': [], 'q_onehot': []}
+        results = {'n': [], 'pi': [], 'beta': [], 'q': [], 'acc': [], 'r': [], 'score': [], 'q_onehot': [],
+                   'beta_checkpoint': []}
 
         #for _ in tqdm(itertools.count()):
         for _ in itertools.count():
 
             try:
-                self.load_checkpoint(self.snapshot_path)
+                self.load_value_checkpoint(self.checkpoint_value)
+                beta_checkpoint_n = (self.load_beta_checkpoint(self.checkpoint_beta))['n']
             except:
                 print("Error in load checkpoint")
                 continue
@@ -358,11 +421,7 @@ class GANAgent(Agent):
                 beta = beta.data.cpu().numpy().reshape(self.action_space)
                 q = q.data.cpu().numpy()
 
-                if self.n_offset <= self.n_rand:
-                    pi = self.pi_rand
-                else:
-                    pi = beta
-
+                pi = beta
                 pi = np.expand_dims(pi, axis=0)
                 self.env.step_policy(pi)
 
@@ -384,6 +443,7 @@ class GANAgent(Agent):
                 results['acc'] = np.asarray(results['acc'])
                 results['r'] = np.asarray(results['r'])
 
+                results['beta_checkpoint'] = beta_checkpoint_n
                 results['n'] = self.n_offset
                 results['score'] = results['q']
                 #results['acc'] = self.env.acc

@@ -9,7 +9,7 @@ import itertools
 
 class Agent(object):
 
-    def __init__(self, exp_name, checkpoint=None, player=False):
+    def __init__(self, exp_name, checkpoint_value=None, checkpoint_beta=None, player=False):
         # parameters
         self.update_memory_interval = args.update_memory_interval
         self.load_memory_interval = args.load_memory_interval
@@ -29,13 +29,16 @@ class Agent(object):
         self.n_players = args.n_players
         self.n_tot = args.n_tot
         self.n_rand = args.n_rand
+        self.save_beta = args.save_beta
+        self.actor_index = args.actor_index
+        self.beta_lr = args.beta_lr
 
         self.mix = self.delta
         self.gamma = args.gamma
 
-        self.checkpoint = checkpoint
+        self.checkpoint_value = checkpoint_value
+        self.checkpoint_beta = checkpoint_beta
         self.root_dir = self.dirs_locks.root
-        self.snapshot_path = self.dirs_locks.snapshot_path
         self.explore_dir = self.dirs_locks.explore_dir
         self.list_dir = self.dirs_locks.list_dir
         self.writelock = self.dirs_locks.writelock
@@ -57,10 +60,10 @@ class Agent(object):
         #     except FileExistsError:
         #         pass
 
-    def save_checkpoint(self, path, aux=None):
+    def save_value_checkpoint(self, path, aux=None):
         raise NotImplementedError
 
-    def load_checkpoint(self, path):
+    def load_value_checkpoint(self, path):
 
         raise NotImplementedError
 
@@ -101,7 +104,7 @@ class Agent(object):
     #         self.behavioral_avg_frame = behavioral_avg_frame
 
     def resume(self, model_path):
-        aux = self.load_checkpoint(model_path)
+        aux = self.load_value_checkpoint(model_path)
         return aux
 
     def clean(self):
@@ -123,12 +126,12 @@ class Agent(object):
 
             if not i % 50:
                 try:
-                    self.load_checkpoint(self.snapshot_path)
+                    self.load_value_checkpoint(self.checkpoint_value)
                     if self.n_offset >= args.n_tot:
                         break
                 except:
                     pass
-        time.sleep(15)
+        time.sleep(260)
         shutil.rmtree(self.explore_dir)
         shutil.rmtree(self.list_dir)
         #shutil.rmtree(self.root_dir)

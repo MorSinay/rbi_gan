@@ -95,9 +95,11 @@ parser.add_argument('--beta-init', type=str, default='uniform', help='[uniform|l
 
 # # booleans
 boolean_feature("load-last-model", False, 'Load the last saved model')
-boolean_feature("load-best-model", False, 'Load the best saved model')
+#boolean_feature("load-best-model", False, 'Load the best saved model')
 boolean_feature("learn", False, 'Learn from the observations')
 boolean_feature("play", False, 'Test the learned model via playing')
+boolean_feature("save-beta", False, 'Save beta')
+boolean_feature("exploration-only", False, 'Exploration Agent')
 boolean_feature("postprocess", False, 'Postprocess evaluation results')
 boolean_feature("multiplay", False, 'Send samples to memory from multiple parallel players')
 boolean_feature("multiplay-random", False, 'Send random samples to memory from multiple parallel players')
@@ -125,12 +127,12 @@ parser.add_argument('--cpu-workers', type=int, default=24, help='How many CPUs w
 parser.add_argument('--cuda-default', type=int, default=0, help='Default GPU')
 #
 # #train parameters
-parser.add_argument('--n-tot', type=int, default=1000000, metavar='STEPS', help='Total number of training steps')
+parser.add_argument('--n-tot', type=int, default=1500000, metavar='STEPS', help='Total number of training steps')
 parser.add_argument('--checkpoint-interval', type=int, default=1000, metavar='STEPS', help='Number of training steps between evaluations')
 # parser.add_argument('--random-initialization', type=int, default=2500, metavar='STEPS', help='Number of training steps in random policy')
-parser.add_argument('--player-replay-size', type=int, default=2500, help='Player\'s replay memory size')
+parser.add_argument('--player-replay-size', type=int, default=40, help='Player\'s replay memory size')
 parser.add_argument('--update-memory-interval', type=int, default=10, metavar='STEPS', help='Number of steps between memory updates')
-parser.add_argument('--load-memory-interval', type=int, default=10, metavar='STEPS', help='Number of steps between memory loads')
+parser.add_argument('--load-memory-interval', type=int, default=1, metavar='STEPS', help='Number of steps between memory loads')
 parser.add_argument('--replay-updates-interval', type=int, default=5000, metavar='STEPS', help='Number of training iterations between q-target updates')
 parser.add_argument('--replay-memory-size', type=int, default=20000, help='Total replay exploit memory size')
 parser.add_argument('--gamma', type=float, default=0.97, metavar='LR', help='gamma (default: 0.97)')
@@ -144,6 +146,7 @@ parser.add_argument('--rl-metric', type=str, default='td', metavar='rl', help='t
 # #actors parameters
 parser.add_argument('--n-players', type=int, default=30, help='Number of parallel players for current actor')
 parser.add_argument('--actor-index', type=int, default=0, help='Index of current actor')
+parser.add_argument('--beta-lr', type=float, default=0.0001, metavar='LR', help='beta learning rate')
 
 # distributional learner
 
@@ -207,7 +210,7 @@ class DirsAndLocksSingleton(metaclass=Singleton):
 
         self.trajectory_dir = os.path.join(self.explore_dir, "trajectory")
         self.list_old_path = os.path.join(self.list_dir, "old_explore")
-        self.snapshot_path = os.path.join(self.root, "snapshot")
+        #self.snapshot_path = os.path.join(self.root, "snapshot")
 
         self.readlock = os.path.join(self.list_dir, "readlock_explore.npy")
         self.writelock = os.path.join(self.list_dir, "writelock.npy")
@@ -218,8 +221,8 @@ class DirsAndLocksSingleton(metaclass=Singleton):
         self.results_dir = os.path.join(self.root, 'results')
         self.code_dir = os.path.join(self.root, 'code')
         self.analysis_dir = os.path.join(self.root, 'analysis')
-        self.checkpoint = os.path.join(self.checkpoints_dir, 'checkpoint')
-        self.checkpoint_best = os.path.join(self.checkpoints_dir, 'checkpoint_best')
+        self.checkpoint_value = os.path.join(self.checkpoints_dir, 'checkpoint_value')
+        self.checkpoint_beta = os.path.join(self.checkpoints_dir, 'checkpoint_beta')
         self.replay_dir = os.path.join(self.indir, self.exp_name)
         self.scores_dir = os.path.join(self.root, 'scores')
 

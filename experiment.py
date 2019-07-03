@@ -25,8 +25,7 @@ class Experiment(object):
 
         dirs = os.listdir(consts.outdir)
 
-        self.load_model = args.load_last_model or args.load_best_model
-        self.load_best = args.load_best_model
+        self.load_model = args.load_last_model
         self.load_last = args.load_last_model
         self.resume = args.resume
         self.log_scores = args.log_scores
@@ -67,8 +66,8 @@ class Experiment(object):
         self.results_dir = self.dirs_locks.results_dir
         self.code_dir = self.dirs_locks.code_dir
         self.analysis_dir = self.dirs_locks.analysis_dir
-        self.checkpoint = self.dirs_locks.checkpoint
-        self.checkpoint_best = self.dirs_locks.checkpoint_best
+        self.checkpoint_value = self.dirs_locks.checkpoint_value
+        self.checkpoint_beta = self.dirs_locks.checkpoint_beta
         self.replay_dir = self.dirs_locks.replay_dir
         self.scores_dir = self.dirs_locks.scores_dir
 
@@ -114,26 +113,19 @@ class Experiment(object):
 
         # init time variables
 
-        agent = self.choose_agent()(self.exp_name, checkpoint=self.checkpoint)
-
-        # load model
+        agent = self.choose_agent()(self.exp_name, checkpoint_value=self.checkpoint_value, checkpoint_beta=self.checkpoint_beta)
+        #
+        #         # load model
         if self.load_model:
-            if self.load_last:
-                aux = agent.resume(self.checkpoint)
-            elif self.load_best:
-                aux = agent.resume(self.checkpoint_best)
-            else:
-                raise NotImplementedError
+            aux = agent.resume(self.checkpoint_value)
             n_offset = aux['n']
         else:
             n_offset = 0
             # save a random init checkpoint
-            agent.save_checkpoint(self.checkpoint, {'n': 0})
+            agent.save_value_checkpoint(self.checkpoint_value, {'n': 0})
 
         # define experiment generators
         learn = agent.learn(args.checkpoint_interval, args.n_tot)
-
-        agent.save_checkpoint(agent.snapshot_path, {'n': agent.n_offset})
 
         batch_explore = args.batch
 
@@ -162,27 +154,21 @@ class Experiment(object):
 
             n = n * args.checkpoint_interval
 
-            avg_train_loss_beta = np.mean(train_results['loss_beta'])
             avg_train_loss_v_beta = np.mean(train_results['loss_q'])
 
             # log to tensorboard
             if args.tensorboard:
-                self.writer.add_scalar('train_loss/loss_beta', float(avg_train_loss_beta), n + n_offset)
                 self.writer.add_scalar('train_loss/loss_value', float(avg_train_loss_v_beta), n + n_offset)
                 self.writer.add_scalar('actions/reward', train_results['r'].mean(), n)
 
-                if hasattr(agent, "beta_net"):
-                    for name, param in agent.beta_net.named_parameters():
-                        self.writer.add_histogram("beta_net/%s" % name, param.clone().cpu().data.numpy(), n + n_offset,
-                                                  'fd')
                 if hasattr(agent, "value_net"):
                     for name, param in agent.value_net.named_parameters():
                         self.writer.add_histogram("value_net/%s" % name, param.clone().cpu().data.numpy(), n + n_offset,
                                                   'fd')
-            self.print_actions_statistics(train_results['pi'], train_results['pi_tag'] , train_results['beta'],
-                                          train_results['q'], avg_train_loss_beta,
-                                          avg_train_loss_v_beta)
-            agent.save_checkpoint(self.checkpoint, {'n': n + n_offset})
+            self.print_actions_statistics(train_results['pi'], train_results['pi_tag'], train_results['q_onehot'],
+                                          train_results['q'], avg_train_loss_v_beta)
+
+            agent.save_value_checkpoint(self.checkpoint_value, {'n': n + n_offset})
 
         print("End Learn")
         return agent
@@ -221,11 +207,18 @@ class Experiment(object):
         return None
 
     def multiplay(self):
-        agent = self.choose_agent()(self.exp_name, player=True, checkpoint=self.checkpoint)
+        agent = self.choose_agent()(self.exp_name, player=True, choose=args.exploration_only, checkpoint_value=self.checkpoint_value,
+                                    checkpoint_beta=self.checkpoint_beta)
         multiplayer = agent.multiplay()
 
-        for _ in multiplayer:
-            pass
+        for n, train_results in tqdm(enumerate(multiplayer)):
+            res = "------------------------------------------------------------\n"
+            res += "best player -actor{} acc {} frame {} n_offset {}\npi {}\npi_explore {}\nbeta {}".format(
+                train_results['actor'], train_results['acc'], train_results['frame'], train_results['n_offset'], train_results['pi'],
+                train_results['epi'], train_results['beta'])
+            res += "\n------------------------------------------------------------\n"
+
+            logger.info(res)
             #print("player X finished")
             #player = self.get_player(agent)
             #if player:
@@ -233,7 +226,8 @@ class Experiment(object):
                 #                  behavioral_avg_frame=player['frames'])
 
     def multiplay_random(self):
-        agent = self.choose_agent()(self.exp_name, player=True, checkpoint=self.checkpoint)
+        agent = self.choose_agent()(self.exp_name, player=True, checkpoint_value=self.checkpoint_value,
+                                    checkpoint_beta=self.checkpoint_beta)
         multiplay_random = agent.multiplay_random()
 
         for _ in multiplay_random:
@@ -247,7 +241,8 @@ class Experiment(object):
     def play(self, params=None):
 
         uuid = "%012d" % np.random.randint(1e12)
-        agent = self.choose_agent()(self.exp_name, player=True, checkpoint=self.checkpoint)
+        agent = self.choose_agent()(self.exp_name, player=True, checkpoint_value=self.checkpoint_value,
+                                    checkpoint_beta=self.checkpoint_beta)
         aux = agent.resume(self.checkpoint)
 
         n = aux['n']
@@ -266,78 +261,81 @@ class Experiment(object):
 
     def clean(self):
 
-        agent = self.choose_agent()(self.exp_name, player=True, checkpoint=self.checkpoint, choose=True)
+        agent = self.choose_agent()(self.exp_name, player=True, checkpoint_value=self.checkpoint_value,
+                                    checkpoint_beta=self.checkpoint_beta, choose=True)
         agent.clean()
 
-    def print_actions_statistics(self, pi_player, pi_tag_player, beta_player, q_player, loss_q, loss_beta):
-
+    def print_actions_statistics(self, pi_player, pi_tag_player, q_onehot, q_player, loss_q):
         # print action meanings
-        logger.info("Actions statistics: \tloss_beta = %f |\t loss_q = %f |" % (loss_beta, loss_q))
+        logger.info("Actions statistics: |\t loss_q = %f |" % (loss_q))
 
-        pi_tag = "|\tpolicy pi tag\t"
-        pi =     "|\tpolicy pi    \t"
-        beta =   "|\tpolicy beta  \t"
-        q =      "|\tvalue q      \t"
+        pi_tag =   "|\tpolicy pi tag\t"
+        pi =       "|\tpolicy pi    \t"
+        onehot_q = "|\tonehot q     \t"
+        q =        "|\tvalue q      \t"
         for i in range(consts.action_space):
             pi_tag += "|%.2f\t" % pi_tag_player[i]
             pi += "|%.2f\t" % pi_player[i]
-            beta += "|%.2f\t" % beta_player[i]
+            onehot_q += "|%.2f\t" % q_onehot[i]
         for i in range(len(q_player)):
             q += "|%.2f\t" % q_player[i]
         pi += "|"
         pi_tag += "|"
-        beta += "|"
+        onehot_q += "|"
         q += "|"
+
         logger.info(pi)
         logger.info(pi_tag)
-        logger.info(beta)
+        logger.info(onehot_q)
         logger.info(q)
 
     def evaluate(self):
         time.sleep(15)
 
-        agent = self.choose_agent()(self.replay_dir, player=True, checkpoint=self.checkpoint)
+        agent = self.choose_agent()(self.replay_dir, player=True, checkpoint_value=self.checkpoint_value,
+                                    checkpoint_beta=self.checkpoint_beta)
 
         player = agent.evaluate()
 
         for n, train_results in tqdm(enumerate(player)):
 
             frame = train_results['n']
-            print("print_evaluation_experiment - |n:{}\t|frame:{}\t|acc:{}\t|".format(
-                n, frame, train_results['acc'][-1]))
+            res = ("print_evaluation_experiment - |n:{}\t|beta frame {}\t|value frame:{}\t|acc:{}\t|".format(
+                n, train_results['beta_checkpoint'], frame, train_results['acc'][-1]))
+
+            logger.info(res)
 
             # log to tensorboard
             if args.tensorboard:
 
-                rand_param = "_rand_"+str(args.actor_index) if args.evaluate_random_policy else ""
+                self.writer.add_scalar('evaluation/acc', train_results['acc'][-1], n)
+                self.writer.add_scalar('evaluation/score', train_results['score'][-1], n)
+                self.writer.add_scalar('evaluation/value', train_results['q'][-1], n)
+                self.writer.add_scalar('evaluation/r', train_results['r'][-1], n)
 
-                self.writer.add_scalar('evaluation' + rand_param + '/acc', train_results['acc'][-1], frame)
-                self.writer.add_scalar('evaluation' + rand_param + '/score', train_results['score'], frame)
+                for i in range(len(train_results['q_onehot'])):
+                    self.writer.add_scalar('evaluation/q_onehot_' + str(i), train_results['q_onehot'][i], n)
 
-                game_str = 'evaluation' + rand_param + '_game_'+str(n)+'_frame_'+str(frame)
+
                 for i in range(len(train_results['pi'])):
-                    self.writer.add_scalar(game_str + '/pi', train_results['pi'][i], i)
-                    self.writer.add_scalar(game_str + '/beta', train_results['beta'][i], i)
-                    self.writer.add_scalar(game_str + '/q_onehot', train_results['q_onehot'][i], i)
+                    self.writer.add_scalar('evaluation/pi_' + str(i), train_results['pi'][i], n)
+                    self.writer.add_scalar('evaluation/beta_' + str(i), train_results['beta'][i], n)
 
-                for i in range(len(train_results['q'])):
-                    self.writer.add_scalar(game_str + '/value', train_results['q'][i], i)
-
-                G = 0
-                rewards = []
-                first = True
-                for r in reversed(train_results['r']):
-                    # the value of the terminal state is 0 by definition
-                    # we should ignore the first state we encounter
-                    # and ignore the last G, which is meaningless since it doesn't correspond to any move
-                    rewards.append(G)
-                    G = r + args.gamma * G
-                rewards.reverse()  # we want it to be in order of state visited
-
-                for i in range(len(train_results['acc'])):
-                    self.writer.add_scalar(game_str + '/acc', train_results['acc'][i], i)
-                    self.writer.add_scalar(game_str + '/r', train_results['r'][i], i)
-                    self.writer.add_scalar(game_str + '/g', rewards[i], i)
+                # G = 0
+                # rewards = []
+                # first = True
+                # for r in reversed(train_results['r']):
+                #     # the value of the terminal state is 0 by definition
+                #     # we should ignore the first state we encounter
+                #     # and ignore the last G, which is meaningless since it doesn't correspond to any move
+                #     rewards.append(G)
+                #     G = r + args.gamma * G
+                # rewards.reverse()  # we want it to be in order of state visited
+                #
+                # for i in range(len(train_results['acc'])):
+                #     self.writer.add_scalar(game_str + '/acc', train_results['acc'][i], i)
+                #     self.writer.add_scalar(game_str + '/r', train_results['r'][i], i)
+                #     self.writer.add_scalar(game_str + '/g', rewards[i], i)
 
 
 
@@ -375,8 +373,6 @@ class Experiment(object):
             if args.evaluate_random_policy:
                 agent.n_offset = args.n_tot
 
-            if n > 50:
-                break
 
         print("End evaluation")
 
