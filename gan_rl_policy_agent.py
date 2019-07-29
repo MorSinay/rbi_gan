@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from config import consts, args, lock_file, release_file
 import psutil
 
-from model_ddpg import DuelNet
+from model_ddpg import DuelNet_1 as DuelNet
 
 from memory_gan import Memory, ReplayBatchSampler
 from agent import Agent
@@ -74,7 +74,7 @@ class GANAgent(Agent):
         # configure learning
 
         # IT IS IMPORTANT TO ASSIGN MODEL TO CUDA/PARALLEL BEFORE DEFINING OPTIMIZER
-        self.optimizer_value = torch.optim.SGD(self.value_net.parameters(), lr=0.0001)
+        self.optimizer_value = torch.optim.SGD(self.value_net.parameters(), lr=self.value_lr)
         #self.optimizer_value = torch.optim.Adam(self.value_net.parameters(), lr=0.001, eps=1.5e-4, weight_decay=0)
 
         if player:
@@ -197,6 +197,47 @@ class GANAgent(Agent):
 
         print("Learn Finish")
 
+    def pca_explore(self, n_players, pca_pi, pi):
+
+        pca = PCA(n_components=2)
+        pca.fit(pca_pi)
+        explore = pca.transform(pi) + (0.9 ** (7 * np.array(range(n_players))).reshape(n_players, 1)) * np.random.rand(n_players, 2)
+        explore = pca.inverse_transform(explore)
+        explore = np.clip(explore, a_min=0.0001, a_max=1)
+        pi_explore = explore / np.repeat(explore.sum(axis=1, keepdims=True), self.action_space, axis=1)
+        return pi_explore
+
+    def grad_explore(self, n_players):
+        self.optimizer_beta.zero_grad()
+        beta_policy = F.softmax(self.beta_net, dim=0)
+        loss_beta = self.value_net(beta_policy)
+        loss_beta.backward()
+
+        grads = self.beta_net.grad.detach().cpu().numpy().copy()
+
+        explore_factor = self.delta * grads + self.epsilon * np.random.randn(n_players, self.action_space)
+        explore_factor *= 0.9 ** (2*np.array(range(n_players))).reshape(n_players,1)
+        beta_explore = self.beta_net.detach().cpu().numpy() + explore_factor
+        pi_explore =  np.exp(beta_explore) / np.sum(np.exp(beta_explore), axis=1).reshape(n_players,1)
+
+        return (pi_explore, grads)
+
+    def rand_explore(self, n_players):
+        pi_explore = np.random.randn(n_players, self.action_space)
+        pi_explore = np.exp(pi_explore) / np.sum(np.exp(pi_explore), axis=1).reshape(n_players,1)
+
+        return pi_explore
+
+    def uniform_explore(self, n_players, pi):
+        explore = np.random.rand(n_players, self.action_space)
+        # explore = np.exp(explore) / np.sum(np.exp(explore), axis=1).reshape(n_players, 1)
+        explore = explore / np.sum(explore, axis=1).reshape(n_players, 1)
+
+        pi_explore = self.epsilon * explore + (1 - self.epsilon) * pi
+        pi_explore = pi_explore / np.repeat(pi_explore.sum(axis=1, keepdims=True), self.action_space, axis=1)
+
+        return pi_explore
+
     def multiplay(self):
 
         n_players = self.n_players
@@ -211,6 +252,7 @@ class GANAgent(Agent):
         policies = [[[]] for _ in range(n_players)]
         explore_policies = [[[]] for _ in range(n_players)]
         trajectory = [[] for _ in range(n_players)]
+        grads = [[[]] for _ in range(n_players)]
 
         # set initial episodes number
         # lock read
@@ -228,32 +270,35 @@ class GANAgent(Agent):
             self.save_beta_checkpoint(self.checkpoint_beta, {'n': 0})
             print("save beta")
 
-        for self.frame in (itertools.count()):
+        grad = np.zeros(10)
+
+        for self.frame in tqdm(itertools.count()):
+
+            pi = F.softmax(self.beta_net.detach(), dim=0)
+            pi = pi.data.cpu().numpy().reshape(-1, self.action_space)
+            # to assume there is no zero policy
+            pi = (1 - self.eta) * pi + self.eta / self.action_space
 
             if self.explore_only or self.n_offset <= self.n_rand:
-                pi = np.random.randn(self.action_space)
-                pi = np.exp(pi) / np.sum(np.exp(pi))
-            #elif self.n_offset <= self.n_rand:
-            #   pi = self.pi_rand
+                #pi_explore = self.rand_explore(n_players)
+                pi_explore = self.uniform_explore(n_players, pi)
+
+            elif len(policies[0][0]) > 20 and args.exploration == 'PCA':
+                pca_pi = np.vstack(np.concatenate(np.vstack(policies)))
+                pi_explore = self.pca_explore(n_players, pca_pi, pi)
+
+            elif self.n_offset > self.n_rand and args.exploration == 'GRAD':
+                (pi_explore, grad) = self.grad_explore(n_players)
+
+            elif self.n_offset > self.n_rand and args.exploration == 'UNIFORM':
+                pi_explore = self.uniform_explore(n_players, pi)
             else:
-                beta = self.beta_net
-                beta = F.softmax(beta.detach(), dim=0)
-                beta = beta.data.cpu().numpy().reshape(-1,self.action_space)
+                #pi_explore = self.rand_explore(n_players)
+                pi_explore = self.uniform_explore(n_players, pi)
 
-                pi = beta.copy()
+            for i in range(n_players):
+                grads[i][-1].append(grad)
 
-                #to assume there is no zero policy
-                pi = (1 - self.eta) * pi + self.eta / self.action_space
-
-
-            explore = np.random.rand(n_players, self.action_space)
-            #explore = np.exp(explore) / np.sum(np.exp(explore), axis=1).reshape(n_players, 1)
-            explore = explore / np.sum(explore, axis=1).reshape(n_players, 1)
-
-            pi_explore = self.epsilon * explore + (1 - self.epsilon) * pi
-            pi_explore = pi_explore / np.repeat(pi_explore.sum(axis=1, keepdims=True), self.action_space, axis=1)
-
-            for i in tqdm(range(n_players)):
                 env = mp_env[i]
                 env.step_policy(np.expand_dims(pi_explore[i], axis=0))
                 rewards[i][-1].append(env.reward)
@@ -351,10 +396,13 @@ class GANAgent(Agent):
                 if self.save_beta: # and self.frame>30:
                     __pi = np.vstack(np.concatenate(np.vstack(policies)))
                     __pi_explore = np.vstack(np.concatenate(np.vstack(explore_policies)))
+                    __grads = np.vstack(np.concatenate(np.vstack(grads)))
                     pi_file = os.path.join(self.root_dir, "pi.npy")
                     pi_explore_file = os.path.join(self.root_dir, "pi_explore.npy")
+                    grad_file = os.path.join(self.root_dir, "grad.npy")
                     np.save(pi_file, __pi)
                     np.save(pi_explore_file, __pi_explore)
+                    np.save(grad_file, __grads)
 
                     # # flaten = [val for sublist in policies for val in sublist]
                     # pi = np.vstack(np.concatenate(np.vstack(policies)))

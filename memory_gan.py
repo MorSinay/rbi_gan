@@ -64,7 +64,7 @@ class ReplayBatchSampler(object):
             #
             if not len(traj_sorted):
                 #print("traj_sorted empty")
-                #time.sleep(5)
+                time.sleep(5)
             #     if flag:
             #         break
                 #traj_sorted = list(range(1000))
@@ -99,16 +99,8 @@ class ReplayBatchSampler(object):
 
             for i in range(minibatches):
                 samples = shuffle_indexes[i]
-                try:
-                    yield list(zip(replay_buffer[samples], replay_buffer[samples + self.n_steps]))
-                except Exception as e:
-                    import sys
-                    exc_type, exc_obj, exc_tb = sys.exc_info()
-                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                    print(exc_type, fname, exc_tb.tb_lineno)
-                    print(e)
+                yield list(zip(replay_buffer[samples], replay_buffer[samples + self.n_steps]))
 
-            time.sleep(5)
 
     def __len__(self):
         return np.inf

@@ -32,6 +32,7 @@ class Agent(object):
         self.save_beta = args.save_beta
         self.actor_index = args.actor_index
         self.beta_lr = args.beta_lr
+        self.value_lr = args.value_lr
 
         self.mix = self.delta
         self.gamma = args.gamma

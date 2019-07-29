@@ -79,10 +79,10 @@ CUDA_VISIBLE_DEVICES=1, python $loc/main.py --multiplay --identifier=$identifier
 CUDA_VISIBLE_DEVICES=2, python $loc/main.py --multiplay --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux --actor-index=46 &
 CUDA_VISIBLE_DEVICES=3, python $loc/main.py --multiplay --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux --actor-index=47 &
 
-CUDA_VISIBLE_DEVICES=1, python $loc/main.py --multiplay --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux --actor-index=51 --exploration-only&
-CUDA_VISIBLE_DEVICES=2, python $loc/main.py --multiplay --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux --actor-index=52 --exploration-only&
-CUDA_VISIBLE_DEVICES=3, python $loc/main.py --multiplay --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux --actor-index=53 --exploration-only&
+CUDA_VISIBLE_DEVICES=1, python $loc/main.py --multiplay --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux --actor-index=51 & #--exploration-only&
+CUDA_VISIBLE_DEVICES=2, python $loc/main.py --multiplay --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux --actor-index=52 & #--exploration-only&
+CUDA_VISIBLE_DEVICES=3, python $loc/main.py --multiplay --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux --actor-index=53 & #--exploration-only&
 
-CUDA_VISIBLE_DEVICES=1, python $loc/main.py --multiplay --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux --actor-index=54 --exploration-only&
-CUDA_VISIBLE_DEVICES=2, python $loc/main.py --multiplay --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux --actor-index=55 --exploration-only&
-CUDA_VISIBLE_DEVICES=3, python $loc/main.py --multiplay --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux --actor-index=56 --exploration-only&
+CUDA_VISIBLE_DEVICES=1, python $loc/main.py --multiplay --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux --actor-index=54 & #--exploration-only&
+CUDA_VISIBLE_DEVICES=2, python $loc/main.py --multiplay --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux --actor-index=55 & #--exploration-only&
+CUDA_VISIBLE_DEVICES=3, python $loc/main.py --multiplay --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux --actor-index=56 & #--exploration-only&

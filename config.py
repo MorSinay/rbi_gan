@@ -90,7 +90,7 @@ parser.add_argument('--acc', type=str, default='all', help='[all|label]')
 #parser.add_argument('--reward', type=str, default='shape', help='[shape|no_shape|step|final]')
 
 parser.add_argument('--benchmark', type=str, default='mnist', help='[mnist|fmnist|cifar10]')
-parser.add_argument('--beta-init', type=str, default='uniform', help='[uniform|label|rand]')
+parser.add_argument('--beta-init', type=str, default='rand', help='[uniform|label|rand]')
 #parser.add_argument('--base-dir', type=str, default=base_dir, help='Base directory for Logs and results')
 
 # # booleans
@@ -133,7 +133,7 @@ parser.add_argument('--checkpoint-interval', type=int, default=1000, metavar='ST
 parser.add_argument('--player-replay-size', type=int, default=40, help='Player\'s replay memory size')
 parser.add_argument('--update-memory-interval', type=int, default=10, metavar='STEPS', help='Number of steps between memory updates')
 parser.add_argument('--load-memory-interval', type=int, default=1, metavar='STEPS', help='Number of steps between memory loads')
-parser.add_argument('--replay-updates-interval', type=int, default=5000, metavar='STEPS', help='Number of training iterations between q-target updates')
+parser.add_argument('--replay-updates-interval', type=int, default=50, metavar='STEPS', help='Number of training iterations between q-target updates')
 parser.add_argument('--replay-memory-size', type=int, default=20000, help='Total replay exploit memory size')
 parser.add_argument('--gamma', type=float, default=0.97, metavar='LR', help='gamma (default: 0.97)')
 parser.add_argument('--cmin', type=float, default=0, metavar='c_min', help='Lower reroute threshold')
@@ -147,6 +147,12 @@ parser.add_argument('--rl-metric', type=str, default='td', metavar='rl', help='t
 parser.add_argument('--n-players', type=int, default=30, help='Number of parallel players for current actor')
 parser.add_argument('--actor-index', type=int, default=0, help='Index of current actor')
 parser.add_argument('--beta-lr', type=float, default=0.0001, metavar='LR', help='beta learning rate')
+parser.add_argument('--value-lr', type=float, default=0.0001, metavar='LR', help='value learning rate')
+
+
+parser.add_argument('--metric', type=str, default='SMOOTH', metavar='N', help='L1|MSE|SMOOTH')
+parser.add_argument('--architecture', type=str, default='SAME', metavar='N', help='SAME|BIGGER')
+parser.add_argument('--exploration', type=str, default='PCA', metavar='N', help='PCA|GRAD|UNIFORM')
 
 # distributional learner
 
