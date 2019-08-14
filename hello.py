@@ -26,6 +26,8 @@ output_folder = "scipy-optimize-fmin"
 fmin = scipy.optimize.fmin
 budget_multiplier = 100000  # increase to 10, 100, ...
 
+#check
+
 ### prepare
 suite_filter_options = ("dimensions: 10 " #+  # skip dimension 40
                         # "year:2019 " +  # select instances by year
