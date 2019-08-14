@@ -6,7 +6,7 @@ from sklearn.decomposition import PCA
 from pathlib import Path
 home = str(Path.home())
 
-root_dir = os.path.join(home,'Desktop/temp/yoda/')
+root_dir = os.path.join(home,'Desktop/temp/moraband/')
 
 pi_file = os.path.join(root_dir, "pi.npy")
 pi_explore_file = os.path.join(root_dir, "pi_explore.npy")

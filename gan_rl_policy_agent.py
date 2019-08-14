@@ -39,10 +39,10 @@ class GANAgent(Agent):
         if args.beta_init == 'uniform':
             init = torch.tensor(self.pi_rand).to(self.device)
         elif args.beta_init == 'label':
-            init = torch.zeros(self.action_space, dtype=torch.float32).to(self.device)
-            init[0] = 1
+            init = -1*torch.ones(self.action_space, dtype=torch.float32).to(self.device)
+            init[0] = 3
         elif args.beta_init == 'rand':
-            init = torch.rand(self.action_space, dtype=torch.float32).to(self.device)
+            init = torch.randn(self.action_space, dtype=torch.float32).to(self.device)
             init /= torch.sum(init)
         else:
             raise ImportError
@@ -228,13 +228,21 @@ class GANAgent(Agent):
 
         return pi_explore
 
-    def uniform_explore(self, n_players, pi):
-        explore = np.random.rand(n_players, self.action_space)
-        # explore = np.exp(explore) / np.sum(np.exp(explore), axis=1).reshape(n_players, 1)
-        explore = explore / np.sum(explore, axis=1).reshape(n_players, 1)
+    def uniform_explore(self, n_players):
+        # explore_factor = self.epsilon * np.random.randn(n_players, self.action_space)
+        # explore_factor = np.clip(explore_factor, 0, 1)
+        # explore_factor *= 0.9 ** (2 * np.array(range(n_players))).reshape(n_players, 1)
+        # # explore = np.exp(explore) / np.sum(np.exp(explore), axis=1).reshape(n_players, 1)
+        # #explore = explore / np.sum(explore, axis=1).reshape(n_players, 1)
+        #
+        # pi_explore = pi + explore_factor
+        # #pi_explore = pi_explore / np.repeat(pi_explore.sum(axis=1, keepdims=True), self.action_space, axis=1)
+        # pi_explore = np.exp(pi_explore) / np.sum(np.exp(pi_explore), axis=1).reshape(n_players, 1)
 
-        pi_explore = self.epsilon * explore + (1 - self.epsilon) * pi
-        pi_explore = pi_explore / np.repeat(pi_explore.sum(axis=1, keepdims=True), self.action_space, axis=1)
+        explore_factor = self.epsilon * np.random.randn(n_players, self.action_space)
+        explore_factor *= 0.9 ** (2 * np.array(range(n_players))).reshape(n_players, 1)
+        beta_explore = self.beta_net.detach().cpu().numpy() + explore_factor
+        pi_explore = np.exp(beta_explore) / np.sum(np.exp(beta_explore), axis=1).reshape(n_players, 1)
 
         return pi_explore
 
@@ -281,7 +289,7 @@ class GANAgent(Agent):
 
             if self.explore_only or self.n_offset <= self.n_rand:
                 #pi_explore = self.rand_explore(n_players)
-                pi_explore = self.uniform_explore(n_players, pi)
+                pi_explore = self.uniform_explore(n_players)
 
             elif len(policies[0][0]) > 20 and args.exploration == 'PCA':
                 pca_pi = np.vstack(np.concatenate(np.vstack(policies)))
@@ -291,10 +299,10 @@ class GANAgent(Agent):
                 (pi_explore, grad) = self.grad_explore(n_players)
 
             elif self.n_offset > self.n_rand and args.exploration == 'UNIFORM':
-                pi_explore = self.uniform_explore(n_players, pi)
+                pi_explore = self.uniform_explore(n_players)
             else:
                 #pi_explore = self.rand_explore(n_players)
-                pi_explore = self.uniform_explore(n_players, pi)
+                pi_explore = self.uniform_explore(n_players)
 
             for i in range(n_players):
                 grads[i][-1].append(grad)

@@ -12,7 +12,7 @@ loc=`dirname "%0"`
 
 tensor="--no-tensorboard"
 
-args="--algorithm=$algorithm"
+args="--algorithm=$algorithm --env-iterations=938 --beta-lr=0.001 --value-lr=0.001 --replay-memory-size=20000 --replay-updates-interval=1000 --beta-init=label"
 
 CUDA_VISIBLE_DEVICES=0, python $loc/main.py --clean --identifier=$identifier --resume=$resume --load-last-model --game=$game $args $aux &
 
