@@ -18,6 +18,6 @@ else
     echo "New Experiment"
 fi
 
-args="--algorithm=$algorithm --env-iterations=938 --beta-lr=0.001 --value-lr=0.001 --replay-memory-size=20000 --replay-updates-interval=1000 --beta-init=label"
+args="--algorithm=$algorithm --beta-lr=0.001 --value-lr=0.001 --replay-memory-size=20000 --replay-updates-interval=1000"
 
 CUDA_VISIBLE_DEVICES=0, python $loc/main.py --learn --identifier=$identifier --game=$game $resume $args $aux

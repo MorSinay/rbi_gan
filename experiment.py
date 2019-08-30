@@ -19,7 +19,7 @@ from distutils.dir_util import copy_tree
 
 class Experiment(object):
 
-    def __init__(self, logger_file):
+    def __init__(self, logger_file, problem):
 
         # parameters
 
@@ -28,7 +28,7 @@ class Experiment(object):
         self.load_model = args.load_last_model
         self.load_last = args.load_last_model
         self.resume = args.resume
-        self.log_scores = args.log_scores
+        self.problem = problem
 
         temp_name = "%s_%s_%s_exp" % (args.game, args.algorithm, args.identifier)
         self.exp_name = ""
@@ -101,24 +101,23 @@ class Experiment(object):
             self.writer.close()
 
     def choose_agent(self):
-        if args.algorithm == 'ddpg':
-            return GanPolicyAgent
-        elif args.algorithm == 'rbi':
-            return GanPolicyAgent
-        else:
-            print(args.algorithm)
-            raise ImportError
+        return GanPolicyAgent
 
     def learn(self):
 
         # init time variables
 
-        agent = self.choose_agent()(self.exp_name, checkpoint_value=self.checkpoint_value, checkpoint_beta=self.checkpoint_beta)
+        agent = self.choose_agent()(self.exp_name, self.problem, checkpoint_value=self.checkpoint_value, checkpoint_beta=self.checkpoint_beta)
         #
         #         # load model
         if self.load_model:
-            aux = agent.resume(self.checkpoint_value)
-            n_offset = aux['n']
+            try:
+                aux = agent.resume(self.checkpoint_value)
+                n_offset = aux['n']
+            except AssertionError:
+                agent.save_value_checkpoint(self.checkpoint_value, {'n': 0})
+                n_offset = 0
+
         else:
             n_offset = 0
             # save a random init checkpoint
@@ -134,7 +133,7 @@ class Experiment(object):
             print("wait for first samples")
 
 
-            if len(os.listdir(self.dirs_locks.trajectory_dir)) > 128:
+            if len(os.listdir(self.dirs_locks.trajectory_dir)) > 10:
                 hold = 0
 
             time.sleep(5)
@@ -148,7 +147,7 @@ class Experiment(object):
         logger.info("Begin Behavioral Distributional learning experiment")
         logger.info("Game: %s " % args.game)
 
-        for n, train_results in tqdm(enumerate(learn)):
+        for n, train_results in (enumerate(learn)):
 
             print("print_learn_experiment")
 
@@ -165,7 +164,7 @@ class Experiment(object):
                     for name, param in agent.value_net.named_parameters():
                         self.writer.add_histogram("value_net/%s" % name, param.clone().cpu().data.numpy(), n + n_offset,
                                                   'fd')
-            self.print_actions_statistics(train_results['pi'], train_results['pi_tag'], train_results['q_onehot'],
+            self.print_actions_statistics(train_results['pi'], train_results['pi_tag'],
                                           train_results['q'], avg_train_loss_v_beta)
 
             agent.save_value_checkpoint(self.checkpoint_value, {'n': n + n_offset})
@@ -180,141 +179,75 @@ class Experiment(object):
 
     def get_player(self, agent):
         return
-        # if os.path.isdir(agent.best_player_dir) and os.listdir(agent.best_player_dir):
-        #     max_n = 0
-        #
-        #     for stat_file in os.listdir(agent.best_player_dir):
-        #
-        #         while True:
-        #             try:
-        #                 data = np.load(os.path.join(agent.best_player_dir, stat_file)).item()
-        #                 break
-        #             except OSError:
-        #                 time.sleep(0.1)
-        #
-        #         if max_n <= data['n']:
-        #             max_n = data['n']
-        #             player_stats = data['statistics']
-        #
-        #     # fix choice
-        #     for pt in player_stats:
-        #         if pt == "reroute":
-        #             player_type = pt
-        #             break
-        #
-        #     return player_stats[player_type]
-
-        return None
 
     def multiplay(self):
-        agent = self.choose_agent()(self.exp_name, player=True, choose=args.exploration_only, checkpoint_value=self.checkpoint_value,
+        agent = self.choose_agent()(self.exp_name, self.problem, player=True, choose=args.exploration_only, checkpoint_value=self.checkpoint_value,
                                     checkpoint_beta=self.checkpoint_beta)
         multiplayer = agent.multiplay()
 
-        for n, train_results in tqdm(enumerate(multiplayer)):
-            res = "------------------------------------------------------------\n"
-            res += "best player -actor{} acc {} frame {} n_offset {}\npi {}\npi_explore {}\nbeta {}".format(
-                train_results['actor'], train_results['acc'], train_results['frame'], train_results['n_offset'], train_results['pi'],
-                train_results['epi'], train_results['beta'])
-            res += "\n------------------------------------------------------------\n"
+        for n, train_results in (enumerate(multiplayer)):
 
-            logger.info(res)
-            #print("player X finished")
-            #player = self.get_player(agent)
-            #if player:
-                # agent.set_player(player['player'], behavioral_avg_score=player['high'],
-                #                  behavioral_avg_frame=player['frames'])
+            with np.printoptions(precision=3, suppress=True):
+                res = "------------------------------------------------------------\n"
+                res += "best player - actor{} with reward {} best_observed {} -- frame {} n_offset {}" \
+                       "\npolicy {}\ncurrent beta {}".format(
+                        train_results['actor'], train_results['reward'], train_results['best_observed'],
+                        train_results['frame'], train_results['n_offset'],
+                        train_results['policy'],
+                        train_results['beta'])
+                res += "\n------------------------------------------------------------\n"
 
-    def multiplay_random(self):
-        agent = self.choose_agent()(self.exp_name, player=True, checkpoint_value=self.checkpoint_value,
-                                    checkpoint_beta=self.checkpoint_beta)
-        multiplay_random = agent.multiplay_random()
-
-        for _ in multiplay_random:
-            pass
-            # print("player X finished")
-            # player = self.get_player(agent)
-            # if player:
-            # agent.set_player(player['player'], behavioral_avg_score=player['high'],
-            #                  behavioral_avg_frame=player['frames'])
-
-    def play(self, params=None):
-
-        uuid = "%012d" % np.random.randint(1e12)
-        agent = self.choose_agent()(self.exp_name, player=True, checkpoint_value=self.checkpoint_value,
-                                    checkpoint_beta=self.checkpoint_beta)
-        aux = agent.resume(self.checkpoint)
-
-        n = aux['n']
-        results = {"n" : n, "score": [], "frame": []}
-
-        player = agent.play(args.play_episodes_interval)
-
-        for i, step in tqdm(enumerate(player)):
-            results["frame"].append(step['frames'])
-            print("experiment play - frames: %d" % (step['frames']))
-
-        if self.log_scores:
-            logger.info("Save NPY file: eval_%d_%s.npy" % (n, uuid))
-            filename = os.path.join(self.scores_dir, "eval_%d_%s" % (n, uuid))
-            np.save(filename, results)
+                logger.info(res)
 
     def clean(self):
 
-        agent = self.choose_agent()(self.exp_name, player=True, checkpoint_value=self.checkpoint_value,
+        agent = self.choose_agent()(self.exp_name, self.problem, player=True, checkpoint_value=self.checkpoint_value,
                                     checkpoint_beta=self.checkpoint_beta, choose=True)
         agent.clean()
 
-    def print_actions_statistics(self, pi_player, pi_tag_player, q_onehot, q_player, loss_q):
+    def print_actions_statistics(self, pi_player, pi_tag_player, q_player, loss_q):
         # print action meanings
         logger.info("Actions statistics: |\t loss_q = %f |" % (loss_q))
 
         pi_tag =   "|\tpolicy pi tag\t"
         pi =       "|\tpolicy pi    \t"
-        onehot_q = "|\tonehot q     \t"
         q =        "|\tvalue q      \t"
         for i in range(consts.action_space):
             pi_tag += "|%.2f\t" % pi_tag_player[i]
             pi += "|%.2f\t" % pi_player[i]
-            onehot_q += "|%.2f\t" % q_onehot[i]
         for i in range(len(q_player)):
             q += "|%.2f\t" % q_player[i]
         pi += "|"
         pi_tag += "|"
-        onehot_q += "|"
         q += "|"
 
         logger.info(pi)
         logger.info(pi_tag)
-        logger.info(onehot_q)
         logger.info(q)
 
     def evaluate(self):
         time.sleep(15)
 
-        agent = self.choose_agent()(self.replay_dir, player=True, checkpoint_value=self.checkpoint_value,
+        agent = self.choose_agent()(self.replay_dir, self.problem, player=True, checkpoint_value=self.checkpoint_value,
                                     checkpoint_beta=self.checkpoint_beta)
 
         player = agent.evaluate()
 
-        for n, train_results in tqdm(enumerate(player)):
+        for n, train_results in (enumerate(player)):
 
             frame = train_results['n']
-            res = ("print_evaluation_experiment - |n:{}\t|beta frame {}\t|value frame:{}\t|acc:{}\t|".format(
-                n, train_results['beta_checkpoint'], frame, train_results['acc'][-1]))
+            res = ("print_evaluation_experiment - |n:{}\t|value frame:{}\t|best_observed:{}\t|".format(
+                n, frame, train_results['best_observed'][-1]))
 
             logger.info(res)
 
             # log to tensorboard
             if args.tensorboard:
 
-                self.writer.add_scalar('evaluation/acc', train_results['acc'][-1], n)
+                self.writer.add_scalar('evaluation/best_observed', train_results['best_observed'][-1], n)
                 self.writer.add_scalar('evaluation/score', train_results['score'][-1], n)
                 self.writer.add_scalar('evaluation/value', train_results['q'][-1], n)
                 self.writer.add_scalar('evaluation/r', train_results['r'][-1], n)
-
-                for i in range(len(train_results['q_onehot'])):
-                    self.writer.add_scalar('evaluation/q_onehot_' + str(i), train_results['q_onehot'][i], n)
 
 
                 for i in range(len(train_results['pi'])):
@@ -332,8 +265,8 @@ class Experiment(object):
                 #     G = r + args.gamma * G
                 # rewards.reverse()  # we want it to be in order of state visited
                 #
-                # for i in range(len(train_results['acc'])):
-                #     self.writer.add_scalar(game_str + '/acc', train_results['acc'][i], i)
+                # for i in range(len(train_results['best_observed'])):
+                #     self.writer.add_scalar(game_str + '/best_observed', train_results['best_observed'][i], i)
                 #     self.writer.add_scalar(game_str + '/r', train_results['r'][i], i)
                 #     self.writer.add_scalar(game_str + '/g', rewards[i], i)
 
@@ -351,28 +284,20 @@ class Experiment(object):
 
             pi = "|\tpolicy pi\t"
             beta = "|\tpolicy beta\t"
-            onehot_q = "|\tonehot q\t"
             q = "|\tvalue q\t    "
             for i in range(consts.action_space):
                 pi += "|%.2f\t" % train_results['pi'][i]
                 beta += "|%.2f\t" % train_results['beta'][i]
-                onehot_q += "|%.2f\t" % train_results['q_onehot'][i]
 
             for i in range(len(train_results['q'])):
                 q += "|%.2f\t" % train_results['q'][i]
 
             pi += "|"
             beta += "|"
-            onehot_q += "|"
             q += "|"
             logger.info(pi)
             logger.info(beta)
-            logger.info(onehot_q)
             logger.info(q)
-
-            if args.evaluate_random_policy:
-                agent.n_offset = args.n_tot
-
 
         print("End evaluation")
 

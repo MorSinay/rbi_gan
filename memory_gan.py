@@ -22,7 +22,7 @@ class Memory(torch.utils.data.Dataset):
 
         return {'r': torch.from_numpy(np.array(sample['r'])), 't': torch.from_numpy(np.array(sample['t'])),
                 'pi': torch.from_numpy(sample['pi']), 'pi_explore': torch.from_numpy(sample['pi_explore']),
-                'acc': torch.from_numpy(np.array(sample['acc'])), 'pi_tag': torch.from_numpy(next_sample['pi'])}
+                'best_observed': torch.from_numpy(np.array(sample['best_observed'])), 'pi_tag': torch.from_numpy(next_sample['pi'])}
 
 
 class ReplayBatchSampler(object):
@@ -36,7 +36,6 @@ class ReplayBatchSampler(object):
         self.trajectory_dir = self.dirs_locks.trajectory_dir
         self.list_old_path = self.dirs_locks.list_old_path
 
-        #TODO Mor: ?
         self.replay_updates_interval = args.replay_updates_interval
         self.replay_memory_size = args.replay_memory_size
         self.readlock = self.dirs_locks.readlock
@@ -49,7 +48,7 @@ class ReplayBatchSampler(object):
         traj_old = 0
         replay_buffer = np.array([], dtype=self.rec_type)
 
-        # flag = True
+        #flag = True
         while True:
 
             # load new memory
@@ -60,8 +59,8 @@ class ReplayBatchSampler(object):
             np.save(fread, [])
             release_file(fread)
             # if flag:
-            #traj_sorted = list(range(10))*50
-            #
+            #     traj_sorted = list(range(10))*50
+            # #
             if not len(traj_sorted):
                 #print("traj_sorted empty")
                 time.sleep(5)

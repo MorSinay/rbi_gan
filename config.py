@@ -5,7 +5,6 @@ import socket
 import os
 import pwd
 import fcntl
-from torchvision import datasets, transforms
 
 parser = argparse.ArgumentParser(description='gan_rl')
 username = pwd.getpwuid(os.geteuid()).pw_name
@@ -17,33 +16,6 @@ elif "root" == username:
     base_dir = r'/workspace/data/gan_rl/'
 else:
     base_dir = os.path.join('/data/', username, 'gan_rl', server)
-
-def download_data():
-
-    rawdata = '/dev/shm/elkayam'
-
-    if not os.path.exists(os.path.join(rawdata, 'fmnist')):
-        os.makedirs(os.path.join(rawdata, 'fmnist'))
-    if not os.path.exists(os.path.join(rawdata, 'mnist')):
-        os.makedirs(os.path.join(rawdata, 'mnist'))
-    if not os.path.exists(os.path.join(rawdata, 'cifar10')):
-        os.makedirs(os.path.join(rawdata, 'cifar10'))
-
-    transform = transforms.Compose([transforms.ToTensor(),
-                                    transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))])
-
-    datasets.FashionMNIST(root=os.path.join(rawdata, 'fmnist'), train=True, transform=transform, download=True)
-    datasets.FashionMNIST(root=os.path.join(rawdata, 'fmnist'), train=False, transform=transform, download=True)
-
-    datasets.MNIST(root=os.path.join(rawdata, 'mnist'), train=True, transform=transform, download=True)
-    datasets.MNIST(root=os.path.join(rawdata, 'mnist'), train=False, transform=transform, download=True)
-
-    transform = transforms.Compose([transforms.ToTensor(),
-                                        transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.247, 0.243, 0.261))])
-
-    datasets.CIFAR10(root=os.path.join(rawdata, 'cifar10'), train=True, transform=transform, download=True)
-    datasets.CIFAR10(root=os.path.join(rawdata, 'cifar10'), train=False, transform=transform, download=True)
-
 
 def boolean_feature(feature, default, help):
 
@@ -59,68 +31,31 @@ def boolean_feature(feature, default, help):
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disables CUDA training')
 
-# Env Arguments
-parser.add_argument('--env-batch-size', type=int, default=64, metavar='N',
-                    help='env batch size for training (default: 64)')
-parser.add_argument('--env-iterations', type=int, default=5625, metavar='N',
-                    help='number of env iterations (default: 1)')
-
-# Model Arguments
-parser.add_argument('--test-loader-batch-size', type=int, default=512, metavar='N',
-                    help='test loader batch size (default: 1024)')
-parser.add_argument('--model-lr', type=float, default=0.001, metavar='LR',
-                    help='model optimizer learning rate (default: 0.001)')
-parser.add_argument('--model-beta1', type=float, default=0.9, metavar='M',
-                    help='model Adam beta1 (default: 0.9)')
-parser.add_argument('--model-beta2', type=float, default=0.999, metavar='M',
-                    help='model Adam beta2 (default: 0.999)')
-
-parser.add_argument('--play-episodes-interval', type=int, default=24, metavar='N',
-                    help='Number of episodes between net updates')
-
 parser.add_argument('--batch', type=int, default=64, help='Mini-Batch Size')
 
 
 # strings
-parser.add_argument('--game', type=str, default='active', help='active | generate')
+parser.add_argument('--game', type=str, default='bbo', help='bbo | net')
 parser.add_argument('--identifier', type=str, default='debug', help='The name of the model to use')
-parser.add_argument('--algorithm', type=str, default='rbi', help='[rbi|ddpg]')
-
-parser.add_argument('--acc', type=str, default='all', help='[all|label]')
-#parser.add_argument('--reward', type=str, default='shape', help='[shape|no_shape|step|final]')
-
-parser.add_argument('--benchmark', type=str, default='mnist', help='[mnist|fmnist|cifar10]')
-parser.add_argument('--beta-init', type=str, default='rand', help='[uniform|label|rand]')
-#parser.add_argument('--base-dir', type=str, default=base_dir, help='Base directory for Logs and results')
+parser.add_argument('--algorithm', type=str, default='reinforce', help='[reinforce]')
 
 # # booleans
 boolean_feature("load-last-model", False, 'Load the last saved model')
-#boolean_feature("load-best-model", False, 'Load the best saved model')
 boolean_feature("learn", False, 'Learn from the observations')
-boolean_feature("play", False, 'Test the learned model via playing')
 boolean_feature("save-beta", False, 'Save beta')
 boolean_feature("exploration-only", False, 'Exploration Agent')
 boolean_feature("postprocess", False, 'Postprocess evaluation results')
 boolean_feature("multiplay", False, 'Send samples to memory from multiple parallel players')
-boolean_feature("multiplay-random", False, 'Send random samples to memory from multiple parallel players')
 boolean_feature("evaluate", False, 'evaluate player')
-boolean_feature("evaluate-random-policy", False, 'evaluate random policy|action player')
 boolean_feature("clean", False, 'Clean old trajectories')
-#TODO Mor: True
 boolean_feature("tensorboard", False, "Log results to tensorboard")
-boolean_feature("log-scores", True, "Log score results to NPY objects")
-#TODO Mor: return to 6
 parser.add_argument('--n-steps', type=int, default=1, metavar='STEPS', help='Number of steps for multi-step learning')
-
-
-
+parser.add_argument('--budget', type=int, default=10000, help='Number of steps')
 # parameters
 parser.add_argument('--resume', type=int, default=-1, help='Resume experiment number, set -1 for last experiment')
 
 # #exploration parameters
-# parser.add_argument('--softmax-diff', type=float, default=3.8, metavar='β', help='Maximum softmax diff')
 parser.add_argument('--epsilon', type=float, default=0.1, metavar='ε', help='exploration parameter before behavioral period')
-parser.add_argument('--eta', type=float, default=0.001, metavar='ε', help='exploration parameter before behavioral period')
 #
 # #dataloader
 parser.add_argument('--cpu-workers', type=int, default=24, help='How many CPUs will be used for the data loading')
@@ -129,15 +64,12 @@ parser.add_argument('--cuda-default', type=int, default=0, help='Default GPU')
 # #train parameters
 parser.add_argument('--n-tot', type=int, default=1500000, metavar='STEPS', help='Total number of training steps')
 parser.add_argument('--checkpoint-interval', type=int, default=1000, metavar='STEPS', help='Number of training steps between evaluations')
-# parser.add_argument('--random-initialization', type=int, default=2500, metavar='STEPS', help='Number of training steps in random policy')
-parser.add_argument('--player-replay-size', type=int, default=40, help='Player\'s replay memory size')
+parser.add_argument('--player-replay-size', type=int, default=2000, help='Player\'s replay memory size')
 parser.add_argument('--update-memory-interval', type=int, default=10, metavar='STEPS', help='Number of steps between memory updates')
-parser.add_argument('--load-memory-interval', type=int, default=1, metavar='STEPS', help='Number of steps between memory loads')
+parser.add_argument('--load-memory-interval', type=int, default=10, metavar='STEPS', help='Number of steps between memory loads')
 parser.add_argument('--replay-updates-interval', type=int, default=50, metavar='STEPS', help='Number of training iterations between q-target updates')
 parser.add_argument('--replay-memory-size', type=int, default=20000, help='Total replay exploit memory size')
 parser.add_argument('--gamma', type=float, default=0.97, metavar='LR', help='gamma (default: 0.97)')
-parser.add_argument('--cmin', type=float, default=0, metavar='c_min', help='Lower reroute threshold')
-parser.add_argument('--cmax', type=float, default=2, metavar='c_max', help='Upper reroute threshold')
 parser.add_argument('--delta', type=float, default=0.1, metavar='delta', help='Total variation constraint')
 parser.add_argument('--save-to-mem', type=int, default=200, metavar='stm', help='Save to memory')
 parser.add_argument('--n-rand', type=int, default=2000, metavar='rnand', help='random play')
@@ -152,7 +84,7 @@ parser.add_argument('--value-lr', type=float, default=0.0001, metavar='LR', help
 
 parser.add_argument('--metric', type=str, default='SMOOTH', metavar='N', help='L1|MSE|SMOOTH')
 parser.add_argument('--architecture', type=str, default='SAME', metavar='N', help='SAME|BIGGER')
-parser.add_argument('--exploration', type=str, default='PCA', metavar='N', help='PCA|GRAD|UNIFORM')
+parser.add_argument('--exploration', type=str, default='GRAD', metavar='N', help='GRAD|UNIFORM')
 
 # distributional learner
 
@@ -173,23 +105,17 @@ class Consts(object):
     mem_threshold = int(2e9)
 
     rec_type = np.dtype([('fr', np.int64),
-                         ('r', np.float32), ('acc', np.float32), ('t', np.float32), ('pi', np.float32, action_space),
+                         ('r', np.float32), ('best_observed', np.float32), ('t', np.float32), ('pi', np.float32, action_space),
                          ('pi_explore', np.float32, action_space), ('traj', np.int64), ('ep', np.int64)])
 
     outdir = os.path.join(base_dir, 'results')
-    indir = os.path.join('/dev/shm/', username, 'gan_rl',server)
+    indir = os.path.join('/dev/shm/', username, 'gan_rl')
     logdir = os.path.join(base_dir, 'logs')
-    modeldir = os.path.join('/dev/shm/', username, 'gan_rl', 'model', args.benchmark)
-    rawdata = os.path.join('/dev/shm/', username, args.benchmark)
 
     if not os.path.exists(logdir):
         os.makedirs(logdir)
-    if not os.path.exists(modeldir):
-        os.makedirs(modeldir)
     if not os.path.exists(outdir):
         os.makedirs(outdir)
-    if not os.path.exists(rawdata):
-        download_data()
 
 consts = Consts()
 

@@ -9,18 +9,16 @@ import itertools
 
 class Agent(object):
 
-    def __init__(self, exp_name, checkpoint_value=None, checkpoint_beta=None, player=False):
+    def __init__(self, exp_name, problem, checkpoint_value=None, checkpoint_beta=None, player=False):
+        self.problem = problem
         # parameters
         self.update_memory_interval = args.update_memory_interval
         self.load_memory_interval = args.load_memory_interval
         self.dirs_locks = DirsAndLocksSingleton(exp_name)
         self.action_space = consts.action_space
         self.n_steps = args.n_steps
-        self.player_replay_size = 5 #args.player_replay_size
-        self.cmin = args.cmin
-        self.cmax = args.cmax
+        self.player_replay_size = args.player_replay_size
         self.epsilon = float(args.epsilon * self.action_space / (self.action_space - 1))
-        self.eta = args.eta
         self.delta = args.delta
         self.player = player
         self.cuda_id = args.cuda_default
@@ -33,6 +31,7 @@ class Agent(object):
         self.actor_index = args.actor_index
         self.beta_lr = args.beta_lr
         self.value_lr = args.value_lr
+        self.budget = args.budget
 
         self.mix = self.delta
         self.gamma = args.gamma
@@ -76,33 +75,6 @@ class Agent(object):
 
     def learn(self, n_interval, n_tot):
         raise NotImplementedError
-
-    # def set_player(self, player, cmin=None, cmax=None, delta=None,
-    #                epsilon=None, behavioral_avg_score=None,
-    #                behavioral_avg_frame=None, explore_threshold=None):
-    #
-    #     self.player = player
-    #
-    #     if epsilon is not None:
-    #         self.epsilon = epsilon * self.action_space / (self.action_space - 1)
-    #
-    #     if cmin is not None:
-    #         self.cmin = cmin
-    #
-    #     if cmax is not None:
-    #         self.cmax = cmax
-    #
-    #     if delta is not None:
-    #         self.delta = delta
-    #
-    #     if explore_threshold is not None:
-    #         self.explore_threshold = explore_threshold
-    #
-    #     if behavioral_avg_score is not None:
-    #         self.behavioral_avg_score = behavioral_avg_score
-    #
-    #     if behavioral_avg_frame is not None:
-    #         self.behavioral_avg_frame = behavioral_avg_frame
 
     def resume(self, model_path):
         aux = self.load_value_checkpoint(model_path)

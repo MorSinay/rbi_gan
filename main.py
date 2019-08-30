@@ -4,6 +4,7 @@ from experiment import Experiment
 import torch
 import numpy as np
 import time
+import cocoex
 
 
 def main():
@@ -16,35 +17,29 @@ def main():
     for k, v in vars(args).items():
         logger.info(' ' * 26 + k + ': ' + str(v))
 
-    with Experiment(logger.filename) as exp:
+    #################################
+    suite_name = "bbob"
+    suite_filter_options = ("dimensions: 10 " #"year:2019 " +  "instance_indices: 1-5 "
+                        )
+    suite = cocoex.Suite(suite_name, "", suite_filter_options)
+    #observer = cocoex.Observer(suite_name, "result_folder: " + output_folder)
+    for problem in suite:  # this loop will take several minutes or longer
+        my_problem = problem
+        break
+
+    with Experiment(logger.filename, my_problem) as exp:
 
         if args.learn:
             logger.info("GanRL Learning Session, it might take a while")
             exp.learn()
 
-        elif args.play:
-            logger.info("Start a player Session")
-            exp.play()
-
         elif args.evaluate:
             logger.info("Evaluate performance")
             exp.evaluate()
 
-        elif args.evaluate_random_policy:
-            logger.info("Evaluate random policy performance")
-            pi = np.ones(consts.action_space, dtype=np.float32) / consts.action_space
-            #pi = np.ones(consts.action_space, dtype=np.float32)*0.01
-            #pi[9] += 0.65
-            #pi[3] += 0.25
-            exp.evaluate(pi=pi)
-
         elif args.multiplay:
             logger.info("Start a multiplay Session")
             exp.multiplay()
-
-        elif args.multiplay_random:
-            logger.info("Start a random multiplay Session")
-            exp.multiplay_random()
 
         elif args.clean:
             logger.info("Clean old trajectories")
