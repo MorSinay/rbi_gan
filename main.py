@@ -2,8 +2,6 @@ from config import consts, args
 from logger import logger
 from experiment import Experiment
 import torch
-import numpy as np
-import time
 import cocoex
 
 
@@ -17,36 +15,22 @@ def main():
     for k, v in vars(args).items():
         logger.info(' ' * 26 + k + ': ' + str(v))
 
-    #################################
     suite_name = "bbob"
     suite_filter_options = ("dimensions: 10 " #"year:2019 " +  "instance_indices: 1-5 "
                         )
     suite = cocoex.Suite(suite_name, "", suite_filter_options)
     #observer = cocoex.Observer(suite_name, "result_folder: " + output_folder)
-    for problem in suite:  # this loop will take several minutes or longer
-        my_problem = problem
-        break
+    problem_index = args.problem_index
+    for i, problem in enumerate(suite):
+        if i == problem_index:
+            my_problem = problem
+            break
+    else:
+        return
 
     with Experiment(logger.filename, my_problem) as exp:
-
-        if args.learn:
-            logger.info("GanRL Learning Session, it might take a while")
-            exp.learn()
-
-        elif args.evaluate:
-            logger.info("Evaluate performance")
-            exp.evaluate()
-
-        elif args.multiplay:
-            logger.info("Start a multiplay Session")
-            exp.multiplay()
-
-        elif args.clean:
-            logger.info("Clean old trajectories")
-            exp.clean()
-
-        else:
-            raise NotImplementedError
+        logger.info("BBO Session, it might take a while")
+        exp.bbo()
 
     logger.info("End of simulation")
 

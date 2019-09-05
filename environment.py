@@ -1,8 +1,4 @@
-import cocoex, cocopp  # experimentation and post-processing modules
-import scipy.optimize  # to define the solver to be benchmarked
 import numpy as np
-
-from config import consts, args
 
 class Env(object):
 
@@ -26,9 +22,17 @@ class Env(object):
 
     def step_policy(self, policy):
 
-        assert(policy.size == self.output_size), "action error"
-        assert ((np.clip(policy, self.lower_bounds, self.upper_bounds) - policy).sum()< 0.000001), "clipping error"
-        self.reward = -self.problem(policy)
+        assert ((np.clip(policy, self.lower_bounds, self.upper_bounds) - policy).sum() < 0.000001), "clipping error"
+        self.reward = []
+        if len(policy.shape) == 2:
+            assert(policy.shape[1] == self.output_size), "action error"
+            for i in range(policy.shape[0]):
+                self.reward.append(-self.problem(policy[i]))
+                self.k += 1
+        else:
+            self.reward.append(-self.problem(policy))
+            self.k += 1
+
+        self.reward = np.array(self.reward)
         self.best_observed = self.problem.best_observed_fvalue1
-        self.k += 1
         self.t = self.problem.final_target_hit
