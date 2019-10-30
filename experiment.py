@@ -10,13 +10,15 @@ from single_agent import BBOAgent
 from logger import logger
 from distutils.dir_util import copy_tree
 
+import scipy.optimize  # to define the solver to be benchmarked
 
 class Experiment(object):
 
-    def __init__(self, logger_file, problem):
+    def __init__(self, logger_file, problem, suite_name):
 
         # parameters
-
+        self.suite_name = suite_name
+        self.action_space = args.action_space
         dirs = os.listdir(consts.outdir)
 
         self.load_model = args.load_last_model
@@ -52,7 +54,6 @@ class Experiment(object):
         self.dirs_locks = DirsAndLocksSingleton(self.exp_name)
 
         self.root = self.dirs_locks.root
-        # self.indir = self.dirs_locks.indir
 
         # set dirs
         self.tensorboard_dir = self.dirs_locks.tensorboard_dir
@@ -61,11 +62,10 @@ class Experiment(object):
         self.code_dir = self.dirs_locks.code_dir
         self.analysis_dir = self.dirs_locks.analysis_dir
         self.checkpoint = self.dirs_locks.checkpoint
-        # self.replay_dir = self.dirs_locks.replay_dir
 
         if self.load_model:
             logger.info("Resuming existing experiment")
-            with open("logger", "a") as fo:
+            with open(os.path.join(self.root, "logger"), "a") as fo:
                 fo.write("%s resume\n" % logger_file)
         else:
             logger.info("Creating new experiment")
@@ -92,53 +92,87 @@ class Experiment(object):
             self.writer.export_scalars_to_json(os.path.join(self.tensorboard_dir, "all_scalars.json"))
             self.writer.close()
 
-    def print_statistics(self, beta, beta_explore, value, reward, best_observe, beta_evaluate):
+    def print_statistics(self, n, beta, beta_explore, value, reward, best_observe, beta_evaluate, grads, finish):
+        logger.info("----- N -----: %d\t|----- DIM -----: %d\t|\t----- DONE -----: %d" % (n, self.action_space, finish))
         logger.info("Actions statistics: |\t value = %f \t reward = %f|" % (value, reward))
         logger.info("Best observe      : |\t %f \t \tBeta_evaluate: = %f|" % (best_observe, beta_evaluate))
 
         beta_log         = "|\tbeta        \t"
         beta_explore_log = "|\tbeta_explore\t"
-        for i in range(consts.action_space):
-            beta_log += "|%.2f\t" % beta[i]
-            beta_explore_log += "|%.2f\t" % beta_explore[i]
+        grads_log        = "|\tgrads        \t"
+        for i in range(args.action_space):
+            beta_log += "|%.3f\t" % beta[i]
+            beta_explore_log += "|%.3f\t" % beta_explore[i]
+            grads_log += "|%.3f\t" % grads[i]
         beta_log += "|"
         beta_explore_log += "|"
+        grads_log += "|"
 
         logger.info(beta_log)
         logger.info(beta_explore_log)
+        logger.info(grads_log)
+
+    def benchmarked_compare_scipy_fmin(self):
+        budget = args.budget * self.problem.dimension
+        propose_x0 = self.problem.initial_solution_proposal
+        fmin = scipy.optimize.fmin
+        output = fmin(self.problem, propose_x0(), maxfun=budget, disp=False, full_output=True)
+        str_p = "FMIN - scipy.optimize.fmin\n------------------------------\n"
+        str_p += "SUCCESS IN FINDING THE MINIMUM" if (
+                    self.problem.final_target_hit == 1) else "FAILURE IN FINDING THE MINIMUM"
+        str_p += "\nBest x value:"
+        for i in range(self.problem.dimension):
+            str_p += "|%.2f\t" % output[0][i]
+        str_p += '\nFunction value: %.2f\nNumber of evaluations: %.2f' % (output[1], output[3])
+        logger.info(str_p)
+
+    def benchmarked_compare_scipy_fmin_slsqp(self):
+        propose_x0 = self.problem.initial_solution_proposal
+
+        fmin = scipy.optimize.fmin_slsqp
+        output = fmin(self.problem, propose_x0(), iter=args.budget,# very approximate way to respect budget
+                      full_output=True, iprint=-1)
+        str_p = "FMIN - scipy.optimize.fmin_slsqp\n------------------------------\n"
+        str_p += "SUCCESS IN FINDING THE MINIMUM" if (
+                    self.problem.final_target_hit == 1) else "FAILURE IN FINDING THE MINIMUM"
+        str_p += "\nBest x value:"
+        for i in range(self.problem.dimension):
+            str_p += "|%f\t" % output[0][i]
+        str_p += '\nFunction value: %f\nNumber of evaluations: %.2f' % (output[1], self.problem.evaluations)
+        logger.info(str_p)
 
     def bbo(self):
 
         agent = BBOAgent(self.exp_name, self.problem, checkpoint=self.checkpoint)
 
-        n_explore = 100
+        n_explore = args.batch
         player = agent.find_min(n_explore)
 
         for n, bbo_results in (enumerate(player)):
             beta = bbo_results['policies'][-1]
             beta_explore = np.average(bbo_results['explore_policies'][-1], axis=0)
             #loss_value = bbo_results['loss_value'][-1] #TODO:
-            value = np.average(bbo_results['q_value'][-1])
+            value = -np.average(bbo_results['q_value'][-1])
             reward = np.average(bbo_results['rewards'][-1])
             best_observe = bbo_results['best_observed'][-1]
+            grads = bbo_results['grads'][-1]
             beta_evaluate = self.problem(beta)
+            finish = bbo_results['ts'][-1]
 
-            self.print_statistics(beta, beta_explore, value, reward, best_observe, beta_evaluate)
+            if not n % 100:
+                self.print_statistics(n, beta, beta_explore, value, reward, best_observe, beta_evaluate, grads, finish)
 
             # log to tensorboard
             if args.tensorboard:
 
-                #self.writer.add_scalar('evaluation/loss_value', loss_value, n)
-                self.writer.add_scalar('evaluation/value', value, n)
-                self.writer.add_scalar('evaluation/reward', reward, n)
-                self.writer.add_scalar('evaluation/beta_evaluate', beta_evaluate, n)
-                self.writer.add_scalar('evaluation/best_observe', best_observe, n)
+                self.writer.add_scalar('evaluation/t', finish, n)
+                self.writer.add_scalars('evaluation/value_reward', {'value': value,'reward': reward}, n)
+                self.writer.add_scalars('evaluation/beta_evaluate_observe', {'evaluate': beta_evaluate, 'best': best_observe}, n)
 
 
                 for i in range(len(beta)):
-                    self.writer.add_scalar('evaluation/beta_' + str(i), beta[i], n)
-                    self.writer.add_scalar('evaluation/beta_explore_' + str(i), beta_explore[i], n)
-
+                    self.writer.add_scalars('evaluation/beta_' + str(i), {'beta': beta[i], 'explore': beta_explore[i]}, n)
+                    self.writer.add_scalar('evaluation/grad_' + str(i), grads[i], n)
 
                 if hasattr(agent, "beta_net"):
                     self.writer.add_histogram("evaluation/beta_net", agent.beta_net.clone().cpu().data.numpy(), n, 'fd')

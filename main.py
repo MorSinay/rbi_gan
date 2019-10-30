@@ -3,9 +3,22 @@ from logger import logger
 from experiment import Experiment
 import torch
 import cocoex
+import pandas as pd
+import os
+import pwd
 
+def reset_data_dic():
+    return {
+        'index': [], 'hit': [], 'id': [], 'dimension': [], 'best_observed': [], 'initial_solution': [],
+        'upper_bound': [], 'lower_bound': [], 'number_of_evaluations': []
+        }
 
 def main():
+    username = pwd.getpwuid(os.geteuid()).pw_name
+
+    base_dir = os.path.join('/data/', username, 'gan_rl', 'baseline')
+    if not os.path.exists(base_dir):
+        os.makedirs(base_dir)
 
     torch.set_num_threads(1000)
     print("Torch %d" % torch.get_num_threads())
@@ -16,21 +29,41 @@ def main():
         logger.info(' ' * 26 + k + ': ' + str(v))
 
     suite_name = "bbob"
-    suite_filter_options = ("dimensions: 10 " #"year:2019 " +  "instance_indices: 1-5 "
+    suite_filter_options = ("dimensions: " + str(args.action_space)  #"year:2019 " +  "instance_indices: 1-5 "
                         )
     suite = cocoex.Suite(suite_name, "", suite_filter_options)
-    #observer = cocoex.Observer(suite_name, "result_folder: " + output_folder)
-    problem_index = args.problem_index
+    data = reset_data_dic()
+    #problem_index = args.problem_index
     for i, problem in enumerate(suite):
-        if i == problem_index:
-            my_problem = problem
-            break
-    else:
-        return
 
-    with Experiment(logger.filename, my_problem) as exp:
-        logger.info("BBO Session, it might take a while")
-        exp.bbo()
+        with Experiment(logger.filename, problem, suite_name) as exp:
+            if args.scipy_fmin:
+                logger.info("Scipy fmin Session")
+                exp.benchmarked_compare_scipy_fmin()
+            elif args.scipy_fmin_slsqp:
+                logger.info("Scipy fmin slsqp Session")
+                exp.benchmarked_compare_scipy_fmin_slsqp()
+            elif args.bbo:
+                logger.info("BBO Session, it might take a while")
+                exp.bbo()
+            else:
+                raise NotImplementedError
+
+        data['index'].append(problem.index)
+        data['hit'].append(problem.final_target_hit)
+        data['id'].append(problem.id)
+        data['dimension'].append(problem.dimension)
+        data['best_observed'].append(problem.best_observed_fvalue1)
+        data['initial_solution'].append(problem.initial_solution)
+        data['upper_bound'].append(problem.upper_bounds)
+        data['lower_bound'].append(problem.lower_bounds)
+        data['number_of_evaluations'].append(problem.evaluations)
+
+        break
+
+        df = pd.DataFrame(data)
+        fmin_file = os.path.join(base_dir, 'bbo_'+ str(args.action_space) + '.csv')
+        df.to_csv(fmin_file)
 
     logger.info("End of simulation")
 

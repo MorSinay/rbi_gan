@@ -25,7 +25,7 @@ class BBOAgent(object):
 
         self.problem = problem
         self.dirs_locks = DirsAndLocksSingleton(exp_name)
-        self.action_space = consts.action_space
+        self.action_space = args.action_space
         self.epsilon = float(args.epsilon * self.action_space / (self.action_space - 1))
         self.delta = args.delta
         self.cuda_id = args.cuda_default
@@ -34,7 +34,7 @@ class BBOAgent(object):
         self.problem_index = args.problem_index
         self.beta_lr = args.beta_lr
         self.value_lr = args.value_lr
-        self.budget = args.budget
+        self.budget = args.budget * self.problem.dimension
         self.checkpoint = checkpoint
 
         self.env = Env(self.problem)
@@ -51,10 +51,10 @@ class BBOAgent(object):
         self.q_loss = nn.SmoothL1Loss(reduction='none')
 
         # IT IS IMPORTANT TO ASSIGN MODEL TO CUDA/PARALLEL BEFORE DEFINING OPTIMIZER
-        self.optimizer_value = torch.optim.SGD(self.value_net.parameters(), lr=self.value_lr)
-        # self.optimizer_value = torch.optim.Adam(self.value_net.parameters(), lr=0.001, eps=1.5e-4, weight_decay=0)
+        #self.optimizer_value = torch.optim.SGD(self.value_net.parameters(), lr=self.value_lr)
+        self.optimizer_value = torch.optim.Adam(self.value_net.parameters(), lr=self.value_lr, eps=1.5e-4, weight_decay=0)
 
-        self.optimizer_beta = torch.optim.Adam([self.beta_net], lr=self.beta_lr)
+        self.optimizer_beta = torch.optim.Adam([self.beta_net], lr=self.beta_lr, eps=1.5e-4, weight_decay=0)
         # self.optimizer_beta = torch.optim.Adam([self.beta_net], lr=0.00025/4, eps=1.5e-4, weight_decay=0)
 
     def reset_beta(self):
@@ -100,6 +100,7 @@ class BBOAgent(object):
         self.reset_beta()
         self.env.reset()
 
+        self.value_net.eval()
         self.optimizer_beta.zero_grad()
         loss_beta = -self.value_net(self.beta_net)
         loss_beta.backward()
@@ -113,7 +114,7 @@ class BBOAgent(object):
 
             explore_factor = self.delta * grads + self.epsilon * np.random.randn(n_explore, self.action_space)
             explore_factor *= 0.9 ** (2 * np.array(range(n_explore))).reshape(n_explore, 1)
-            beta_explore = beta + explore_factor
+            beta_explore = beta + explore_factor #gradient decent
             beta_explore = np.clip(beta_explore, self.problem.lower_bounds, self.problem.upper_bounds)
 
             self.env.step_policy(beta_explore)
@@ -129,9 +130,15 @@ class BBOAgent(object):
 
             yield results
 
+            if len(results['best_observed']) > 700 and results['best_observed'][-1] == results['best_observed'][-700]:
+                self.save_checkpoint(self.checkpoint, {'n': self.frame})
+                print("VALUE IS NOT CHANGING - FRAME %d" % self.frame)
+                break
+
             if results['ts'][-1]:
                 self.save_checkpoint(self.checkpoint, {'n': self.frame})
-                assert False, "finished"
+                print("FINISHED SUCCESSFULLY - FRAME %d" % self.frame)
+                break
 
             replay_buffer_rewards = np.hstack(results['rewards'])[-self.replay_memory_size:]
             replay_buffer_policy = np.vstack(results['explore_policies'])[-self.replay_memory_size:]
@@ -141,9 +148,12 @@ class BBOAgent(object):
 
             shuffle_indexes = np.random.choice(len_replay_buffer, (minibatches, self.batch),
                                                replace=True)
-            print("Explorer:Replay Buffer size is: %d" % len_replay_buffer)
+
+
+            #print("Explorer:Replay Buffer size is: %d" % len_replay_buffer)
 
             self.value_net.train()
+
             for i in range(minibatches):
                 samples = shuffle_indexes[i]
                 r = torch.tensor(replay_buffer_rewards[samples], dtype=torch.float).to(self.device, non_blocking=True)
@@ -156,17 +166,19 @@ class BBOAgent(object):
                 loss_q.backward()
                 self.optimizer_value.step()
 
+
             self.value_net.eval()
 
-            for _ in range(10):
-                self.optimizer_beta.zero_grad()
-                loss_beta = -self.value_net(self.beta_net)
-                loss_beta.backward()
-                self.optimizer_beta.step()
+            self.optimizer_beta.zero_grad()
+            loss_beta = self.value_net(self.beta_net)
+            loss_beta.backward()
+            self.optimizer_beta.step()
 
+            grads = self.beta_net.grad.detach().cpu().numpy().copy()
             self.save_checkpoint(self.checkpoint, {'n': self.frame})
 
             if self.frame >= self.budget:
+                print("FAILED")
                 break
 
     # def grad_explore(self, n_players):

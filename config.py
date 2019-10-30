@@ -30,7 +30,7 @@ def boolean_feature(feature, default, help):
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disables CUDA training')
 
-parser.add_argument('--batch', type=int, default=64, help='Mini-Batch Size')
+parser.add_argument('--batch', type=int, default=32, help='Mini-Batch Size')
 
 
 # strings
@@ -40,13 +40,16 @@ parser.add_argument('--algorithm', type=str, default='reinforce', help='[reinfor
 
 # # booleans
 boolean_feature("load-last-model", False, 'Load the last saved model')
+boolean_feature("bbo", False, 'BBO optimizer')
+boolean_feature("scipy_fmin", False, 'scipy fmin optimizer')
+boolean_feature("scipy_fmin_slsqp", False, 'scipy fmin slsqp optimizer')
 boolean_feature("tensorboard", False, "Log results to tensorboard")
 parser.add_argument('--budget', type=int, default=10000, help='Number of steps')
 # parameters
 parser.add_argument('--resume', type=int, default=-1, help='Resume experiment number, set -1 for last experiment')
 
 # #exploration parameters
-parser.add_argument('--epsilon', type=float, default=0.1, metavar='ε', help='exploration parameter before behavioral period')
+parser.add_argument('--epsilon', type=float, default=0.05, metavar='ε', help='exploration parameter before behavioral period')
 #
 # #dataloader
 parser.add_argument('--cpu-workers', type=int, default=24, help='How many CPUs will be used for the data loading')
@@ -55,18 +58,16 @@ parser.add_argument('--cuda-default', type=int, default=0, help='Default GPU')
 # #train parameters
 parser.add_argument('--checkpoint-interval', type=int, default=1000, metavar='STEPS', help='Number of training steps between evaluations')
 parser.add_argument('--replay-updates-interval', type=int, default=50, metavar='STEPS', help='Number of training iterations between q-target updates')
-parser.add_argument('--replay-memory-size', type=int, default=20000, help='Total replay exploit memory size')
+parser.add_argument('--replay-memory-size', type=int, default=3000, help='Total replay exploit memory size')
 parser.add_argument('--delta', type=float, default=0.1, metavar='delta', help='Total variation constraint')
-parser.add_argument('--rl-metric', type=str, default='td', metavar='rl', help='td|mc')
+parser.add_argument('--drop', type=float, default=0.25, metavar='drop out', help='Drop out')
 #
 # #actors parameters
 parser.add_argument('--problem-index', type=int, default=0, help='Index of current actor')
-parser.add_argument('--beta-lr', type=float, default=0.0001, metavar='LR', help='beta learning rate')
-parser.add_argument('--value-lr', type=float, default=0.0001, metavar='LR', help='value learning rate')
+parser.add_argument('--beta-lr', type=float, default=1e-3, metavar='LR', help='beta learning rate')
+parser.add_argument('--value-lr', type=float, default=1e-3, metavar='LR', help='value learning rate')
+parser.add_argument('--action-space', type=int, default=10, metavar='dimension', help='Problem dimension')
 
-
-parser.add_argument('--metric', type=str, default='SMOOTH', metavar='N', help='L1|MSE|SMOOTH')
-parser.add_argument('--architecture', type=str, default='SAME', metavar='N', help='SAME|BIGGER')
 parser.add_argument('--exploration', type=str, default='GRAD', metavar='N', help='GRAD|UNIFORM')
 
 # distributional learner
@@ -81,7 +82,6 @@ class Consts(object):
     start_time = time.time()
     exptime = time.strftime("%Y%m%d_%H%M%S", time.localtime())
 
-    action_space = 10
     nop = 0
 
     mem_threshold = int(2e9)
